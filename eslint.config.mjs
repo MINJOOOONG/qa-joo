@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Runner workspaces, local data and Playwright output.
+    ".qa-joo-runs/**",
+    ".data/**",
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 
