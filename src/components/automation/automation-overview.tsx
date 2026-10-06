@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Bot, Terminal } from "lucide-react";
-import { AutomationRunStatusBadge } from "@/components/common/badges";
+import { AutomationRunStatusBadge, ResultBadge } from "@/components/common/badges";
 import { SectionTitle } from "@/components/common/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -92,7 +92,9 @@ export async function AutomationOverview({ ctx, projectId, runnerMode }: { ctx: 
                       </TableCell>
                       {!projectId ? <TableCell className="text-xs">{projectById.get(test.projectId)?.key}</TableCell> : null}
                       <TableCell className="font-mono text-xs">{test.filePath}</TableCell>
-                      <TableCell className="text-xs">{testCase?.lastResult ?? "—"}</TableCell>
+                      <TableCell>
+                        <ResultBadge status={testCase?.lastResult} />
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatRelative(test.approvedAt)}</TableCell>
                     </TableRow>
                   );

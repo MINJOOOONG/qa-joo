@@ -50,6 +50,9 @@ export function getConfig() {
       serviceRoleKey: supabaseServiceRoleKey,
       artifactBucket: read("SUPABASE_ARTIFACT_BUCKET") ?? "qa-artifacts",
     },
+    /** Where runner artifacts live: Supabase Storage by default with Supabase, otherwise local disk. */
+    artifactStorage:
+      read("QA_JOO_ARTIFACT_STORAGE") === "local" || !supabaseEnabled ? ("local" as const) : ("supabase" as const),
     /** Auth is enforced whenever Supabase is configured, unless explicitly disabled for local use. */
     authEnabled: supabaseEnabled && Boolean(supabaseAnonKey) && !flag("QA_JOO_DISABLE_AUTH"),
     demoMode: flag("QA_JOO_DEMO_MODE"),

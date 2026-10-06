@@ -43,7 +43,7 @@ export async function saveArtifact(runId: string, fileName: string, contentType:
   if (bytes.byteLength > MAX_ARTIFACT_BYTES) throw new AppError("validation", "Artifact is larger than 25 MB.");
   const key = artifactKey(runId, fileName, contentType);
   const config = getConfig();
-  if (config.dataStore === "supabase") {
+  if (config.artifactStorage === "supabase") {
     const repo = await getRepository();
     if (!(repo instanceof SupabaseRepository)) throw new AppError("not_configured", "Supabase storage unavailable.");
     const { error } = await repo.client.storage.from(config.supabase.artifactBucket).upload(key, bytes, { contentType, upsert: false });
@@ -63,7 +63,7 @@ export async function loadArtifact(key: string): Promise<ArtifactSource> {
   const contentType =
     Object.entries(ARTIFACT_TYPES).find(([, extension]) => key.endsWith(extension))?.[0] ?? "application/octet-stream";
   const config = getConfig();
-  if (config.dataStore === "supabase") {
+  if (config.artifactStorage === "supabase") {
     const repo = await getRepository();
     if (!(repo instanceof SupabaseRepository)) throw new AppError("not_configured", "Supabase storage unavailable.");
     const { data, error } = await repo.client.storage.from(config.supabase.artifactBucket).createSignedUrl(key, 300);
