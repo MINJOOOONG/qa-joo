@@ -243,9 +243,14 @@ const toActivity = (r: Row): Activity => ({
   createdAt: r.created_at,
 });
 
-/** Escapes user input for use inside a PostgREST `ilike` filter value. */
-function ilikeValue(search: string): string {
-  return `%${search.replace(/[\\%_,()]/g, (char) => `\\${char}`)}%`;
+/**
+ * Builds a quoted PostgREST filter value for a case-insensitive "contains" search:
+ * LIKE wildcards are escaped first, then the value is double-quoted so reserved characters
+ * (`,` `(` `)` `.` `:`) cannot break the `or=(...)` logic tree.
+ */
+export function ilikeValue(search: string): string {
+  const pattern = `%${search.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+  return `"${pattern.replace(/["\\]/g, (char) => `\\${char}`)}"`;
 }
 
 export class SupabaseRepository implements Repository {

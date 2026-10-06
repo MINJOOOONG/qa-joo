@@ -30,7 +30,7 @@ jobs:
       - run: npm run build
 
   database:
-    name: Supabase migrations apply cleanly
+    name: Supabase schema and repository contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -47,8 +47,24 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
-      - name: Create Supabase roles
-        run: psql -v ON_ERROR_STOP=1 -c "create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Create Supabase roles and default privileges
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create role authenticator login noinherit password 'authpass';
+          grant anon, authenticated, service_role to authenticator;
+          grant usage on schema public to anon, authenticated, service_role;
+          alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+          alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+          alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+          SQL
       - name: Apply schema migration
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261006000000_init.sql
       - name: Check constraints
@@ -60,3 +76,12 @@ jobs:
             raise exception 'projects_target_required was not enforced';
           exception when check_violation then null; end $$;
           SQL
+      - name: Install PostgREST
+        run: |
+          curl -sSL https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz | tar -xJ
+          ./postgrest --version
+      - name: Repository contract tests against PostgREST (Supabase data API)
+        env:
+          DATABASE_URL: postgres://authenticator:authpass@localhost:5432/postgres
+          POSTGREST_BIN: ./postgrest
+        run: bash scripts/supabase-contract.sh
