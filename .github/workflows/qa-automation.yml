@@ -1,0 +1,76 @@
+name: QA Automation
+
+# Runs approved QA JOO Playwright specs against a project's target application and reports
+# results back to QA JOO through HMAC-signed callbacks.
+#
+# Repository configuration:
+#   vars.QA_JOO_URL              Public URL of your QA JOO instance (required)
+#   vars.QA_JOO_PROJECT_KEY      Project for scheduled runs (optional)
+#   secrets.RUNNER_CALLBACK_SECRET  Same value as RUNNER_CALLBACK_SECRET on the QA JOO server
+on:
+  workflow_dispatch:
+    inputs:
+      automation_run_id:
+        description: Automation run id created by QA JOO (leave empty to create a new run)
+        required: false
+        type: string
+      project:
+        description: Project key, used when no run id is given (e.g. RF)
+        required: false
+        type: string
+      target_url:
+        description: Informational; the target comes from the QA JOO run manifest
+        required: false
+        type: string
+      test_run_id:
+        description: Informational; linked QA JOO test run
+        required: false
+        type: string
+      test_case_ids:
+        description: Informational; comma-separated test case ids in the run
+        required: false
+        type: string
+  schedule:
+    - cron: "17 18 * * *" # nightly regression
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-automation-${{ inputs.automation_run_id || github.run_id }}
+
+jobs:
+  run:
+    name: Run approved Playwright specs
+    if: ${{ vars.QA_JOO_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      QA_JOO_URL: ${{ vars.QA_JOO_URL }}
+      RUNNER_CALLBACK_SECRET: ${{ secrets.RUNNER_CALLBACK_SECRET }}
+      # Inputs are passed through env (never interpolated into the script) to avoid injection.
+      RUN_ID: ${{ inputs.automation_run_id }}
+      PROJECT_KEY: ${{ inputs.project || vars.QA_JOO_PROJECT_KEY }}
+      TRIGGER: ${{ github.event_name == 'schedule' && 'scheduled' || 'github' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Execute and report
+        run: |
+          if [ -n "$RUN_ID" ]; then
+            npm run qa:runner -- --run "$RUN_ID"
+          else
+            npm run qa:runner -- --create --project "$PROJECT_KEY" --trigger "$TRIGGER"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-joo-run-${{ github.run_id }}
+          path: .qa-joo-runs/
+          retention-days: 14
+          if-no-files-found: ignore

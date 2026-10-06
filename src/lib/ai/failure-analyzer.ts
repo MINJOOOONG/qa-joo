@@ -68,6 +68,19 @@ export function heuristicFailureAnalysis(context: FailureContext): FailureAnalys
       suggestedRegressionCases: [],
     };
   }
+  const expected = quote(/Expected(?: string| pattern| substring)?:\s*"?([^\n"]+)"?/);
+  const received = quote(/Received(?: string)?:\s*"?([^\n"]+)"?/);
+  if (received && !/^(hidden|visible|<element\(s\) not found>)$/i.test(received)) {
+    return {
+      probableCause: `The page did not show the expected state: expected ${expected ? `"${expected}"` : "a different value"}${received ? ` but received "${received}"` : ""}.`,
+      category: "ui",
+      confidence: "medium",
+      suggestedNextStep: "Open the screenshot and trace to confirm whether this is a product regression or an outdated expectation.",
+      suggestedRegressionCases: [
+        regression(`Verify the result state of "${title}"`, "regression", "high", context.testCase.steps.slice(0, 5), context.testCase.expectedResult),
+      ],
+    };
+  }
   if (/Timeout \d+ms exceeded|waiting for (?:locator|getBy)|toBeVisible|element\(s\) not found/i.test(error)) {
     const locator = quote(/waiting for (?:locator\()?(?:getBy\w+\()?([^\n)]+)/);
     const assertion = /expect\(.*\)\.(toBeVisible|toHaveText|toContainText)/.test(error) || /toBeVisible/.test(error);
@@ -81,19 +94,6 @@ export function heuristicFailureAnalysis(context: FailureContext): FailureAnalys
       suggestedRegressionCases: assertion
         ? [regression(`Show the expected state after "${title}"`, "functional", "high", context.testCase.steps.slice(0, 5), context.testCase.expectedResult)]
         : [],
-    };
-  }
-  const expected = quote(/Expected(?: string| pattern| substring)?:\s*"?([^\n"]+)"?/);
-  const received = quote(/Received(?: string)?:\s*"?([^\n"]+)"?/);
-  if ((expected && !/^(visible|hidden|enabled|disabled|attached|checked)$/i.test(expected)) || received) {
-    return {
-      probableCause: `The page did not show the expected state: expected ${expected ? `"${expected}"` : "a different value"}${received ? ` but received "${received}"` : ""}.`,
-      category: "ui",
-      confidence: "medium",
-      suggestedNextStep: "Open the screenshot and trace to confirm whether this is a product regression or an outdated expectation.",
-      suggestedRegressionCases: [
-        regression(`Verify the result state of "${title}"`, "regression", "high", context.testCase.steps.slice(0, 5), context.testCase.expectedResult),
-      ],
     };
   }
   return {

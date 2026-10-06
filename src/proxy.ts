@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 /** Runner endpoints authenticate with an HMAC signature instead of a browser session. */
 const RUNNER_PATHS = [/^\/api\/automation\/results$/, /^\/api\/automation\/artifacts$/, /^\/api\/automation\/runs\/[^/]+\/manifest$/];
+const SIGNED_RUNNER_HEADER = "x-qajoo-signature";
 const PUBLIC_PATHS = [/^\/login$/, /^\/api\/health$/, /^\/sandbox(\/.*)?$/];
 
 function authEnabled(): boolean {
@@ -17,7 +18,8 @@ function authEnabled(): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (!authEnabled() || RUNNER_PATHS.some((pattern) => pattern.test(pathname))) {
+  const signedRunCreate = pathname === "/api/automation/runs" && request.headers.has(SIGNED_RUNNER_HEADER);
+  if (!authEnabled() || signedRunCreate || RUNNER_PATHS.some((pattern) => pattern.test(pathname))) {
     return NextResponse.next();
   }
 

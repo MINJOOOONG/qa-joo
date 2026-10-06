@@ -2,6 +2,7 @@
  * QA JOO Playwright runner.
  *
  *   npm run qa:runner -- --run <automationRunId> [--url https://qa-joo.example.com]
+ *   npm run qa:runner -- --create --project RF [--trigger scheduled|github]
  *
  * Environment:
  *   QA_JOO_URL                      Base URL of QA JOO (default http://localhost:3000)
@@ -33,7 +34,7 @@ function argument(name: string): string | undefined {
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
-const runId = argument("run") ?? process.env.QA_JOO_AUTOMATION_RUN_ID;
+let runId = argument("run") ?? process.env.QA_JOO_AUTOMATION_RUN_ID;
 const baseUrl = (argument("url") ?? process.env.QA_JOO_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 const secret = process.env.RUNNER_CALLBACK_SECRET;
 const root = process.cwd();
@@ -99,8 +100,16 @@ async function runPlaywright(configPath: string, logFile: string): Promise<numbe
 }
 
 async function main() {
-  if (!runId || !/^[A-Za-z0-9-]{8,64}$/.test(runId)) throw new Error("Pass a valid automation run id with --run <id>.");
   if (!secret) throw new Error("RUNNER_CALLBACK_SECRET is required.");
+  if (process.argv.includes("--create")) {
+    const projectKey = argument("project") ?? process.env.QA_JOO_PROJECT_KEY;
+    const trigger = argument("trigger") === "scheduled" ? "scheduled" : "github";
+    if (!projectKey || !/^[A-Z][A-Z0-9]{1,9}$/.test(projectKey)) throw new Error("Pass a project key with --project <KEY>.");
+    const { run } = await call<{ run: { id: string } }>("POST", "/api/automation/runs", JSON.stringify({ projectKey, trigger }));
+    runId = run.id;
+    log(`created automation run ${runId} (${trigger}) for ${projectKey}`);
+  }
+  if (!runId || !/^[A-Za-z0-9-]{8,64}$/.test(runId)) throw new Error("Pass a valid automation run id with --run <id>.");
 
   const manifest = await call<Manifest>("GET", `/api/automation/runs/${runId}/manifest`);
   log(`${manifest.tests.length} approved spec(s) for ${manifest.project.key} against ${manifest.targetUrl}`);

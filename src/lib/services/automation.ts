@@ -9,7 +9,7 @@ import type {
   TestCase,
   TestRun,
 } from "@/lib/domain/types";
-import type { AutomationRunStatus } from "@/lib/domain/constants";
+import type { AutomationRunStatus, AutomationTrigger } from "@/lib/domain/constants";
 import type { PageInfo } from "@/lib/analyzer/types";
 import type { AutomationDraft, AutomationDraftInput } from "@/lib/ai/automation-generator";
 import type { FailureContext } from "@/lib/ai/failure-analyzer";
@@ -163,7 +163,12 @@ export async function rejectAutomation(ctx: ServiceContext, id: string, note: st
 export async function createAutomationRun(
   ctx: ServiceContext,
   raw: unknown,
-  options: { defaultRunner: AutomationRun["runner"]; allowPrivateTargets: boolean; dispatch: (run: AutomationRun, project: Project) => Promise<DispatchResult> },
+  options: {
+    defaultRunner: AutomationRun["runner"];
+    allowPrivateTargets: boolean;
+    dispatch: (run: AutomationRun, project: Project) => Promise<DispatchResult>;
+    trigger?: AutomationTrigger;
+  },
 ): Promise<AutomationRun> {
   const input = createAutomationRunSchema.parse(raw);
   const project = await ctx.repo.getProject(input.projectId);
@@ -192,7 +197,7 @@ export async function createAutomationRun(
     testRunId: testRun?.id ?? null,
     environment: input.environment ?? testRun?.environment ?? project.environment,
     targetUrl,
-    trigger: "manual",
+    trigger: options.trigger ?? "manual",
     runner: input.runner ?? options.defaultRunner,
     branch: null,
     commitSha: null,

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  database:
+    name: Supabase migrations apply cleanly
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Supabase roles
+        run: psql -v ON_ERROR_STOP=1 -c "create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;"
+      - name: Apply schema migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261006000000_init.sql
+      - name: Check constraints
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          insert into projects (key, name, app_url) values ('QA', 'Constraint check', 'https://example.com');
+          do $$ begin
+            insert into projects (key, name) values ('QB', 'Missing target');
+            raise exception 'projects_target_required was not enforced';
+          exception when check_violation then null; end $$;
+          SQL
