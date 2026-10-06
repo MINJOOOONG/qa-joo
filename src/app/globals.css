@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/*
+ * QA JOO design tokens (shadcn/ui-compatible names).
+ * Calm neutral surfaces, one indigo accent, and reserved status colors:
+ * passed = green, failed = red, blocked = orange, skipped = gray, untested = neutral.
+ */
+:root {
+  --background: #ffffff;
+  --foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --subtle: #fafafa;
+  --border: #e4e4e7;
+  --input: #d4d4d8;
+  --ring: #6366f1;
+  --primary: #4338ca;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --accent: #eef2ff;
+  --accent-foreground: #3730a3;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --popover: #ffffff;
+  --sidebar: #fafafa;
+
+  --status-passed: #16a34a;
+  --status-passed-bg: #dcfce7;
+  --status-failed: #dc2626;
+  --status-failed-bg: #fee2e2;
+  --status-blocked: #ea580c;
+  --status-blocked-bg: #ffedd5;
+  --status-skipped: #71717a;
+  --status-skipped-bg: #f4f4f5;
+  --status-untested: #a1a1aa;
+  --status-untested-bg: #ffffff;
+
+  --radius: 0.375rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-popover: var(--popover);
+  --color-sidebar: var(--sidebar);
+
+  --color-passed: var(--status-passed);
+  --color-passed-bg: var(--status-passed-bg);
+  --color-failed: var(--status-failed);
+  --color-failed-bg: var(--status-failed-bg);
+  --color-blocked: var(--status-blocked);
+  --color-blocked-bg: var(--status-blocked-bg);
+  --color-skipped: var(--status-skipped);
+  --color-skipped-bg: var(--status-skipped-bg);
+  --color-untested: var(--status-untested);
+  --color-untested-bg: var(--status-untested-bg);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    font-size: 14px;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+  ::selection {
+    background: #c7d2fe;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--primary);
+  }
+}
+
+@layer components {
+  .code-block {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    tab-size: 2;
+  }
+}
