@@ -398,7 +398,7 @@ npm run test:e2e          # Playwright E2E against a production build (run `npm 
 npm run verify            # lint + typecheck + test + build
 ```
 
-What is covered (139 Vitest tests, 9 Playwright E2E tests):
+What is covered (139 Vitest tests, 10 Playwright E2E tests):
 
 - **Services**: project CRUD, case key generation, AI draft review gate, run selection,
   result state transitions, duplicate result prevention, progress and pass-rate math.
