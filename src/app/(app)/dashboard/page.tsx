@@ -9,7 +9,7 @@ import { RunsTable } from "@/components/runs/runs-table";
 import { Button } from "@/components/ui/button";
 import { FAILURE_CATEGORY_LABELS } from "@/lib/domain/constants";
 import { formatPercent } from "@/lib/domain/run-stats";
-import { getPreferences } from "@/lib/preferences";
+import { getPreferences, scopePreferences } from "@/lib/preferences";
 import { getServiceContext } from "@/lib/server-context";
 import { getDashboard } from "@/lib/services/dashboard";
 import { formatRelative } from "@/lib/utils";
@@ -17,7 +17,8 @@ import { formatRelative } from "@/lib/utils";
 export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
-  const [ctx, preferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const [ctx, storedPreferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const preferences = await scopePreferences(ctx.repo, storedPreferences);
   const data = await getDashboard(ctx, preferences.projectId);
   const scope = preferences.projectId ? data.projects[0]?.name : "All projects";
   const projectKeys = new Map(data.projects.map((p) => [p.id, p.key]));

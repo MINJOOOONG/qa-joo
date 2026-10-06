@@ -3,6 +3,7 @@ import { CaseForm } from "@/components/cases/case-form";
 import { PageHeader } from "@/components/common/page-header";
 import { updateCaseAction } from "@/app/actions/cases";
 import { flattenSections } from "@/lib/domain/sections";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { getServiceContext } from "@/lib/server-context";
 
 export const metadata = { title: "Edit Test Case" };
@@ -18,7 +19,7 @@ export default async function EditCasePage({ params, searchParams }: PageProps<"
     id: node.section.id,
     label: `${"— ".repeat(node.depth)}${node.section.name}`,
   }));
-  const returnTo = typeof query.returnTo === "string" && query.returnTo.startsWith("/") ? query.returnTo : `/cases/${id}`;
+  const returnTo = safeRedirectPath(query.returnTo, `/cases/${id}`);
   return (
     <>
       <PageHeader eyebrow={`${project?.key ?? ""} · ${testCase.caseKey}`} title={`Edit ${testCase.caseKey}`} />

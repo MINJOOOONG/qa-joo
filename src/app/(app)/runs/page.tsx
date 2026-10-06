@@ -4,14 +4,15 @@ import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { RunsTable } from "@/components/runs/runs-table";
 import { Button } from "@/components/ui/button";
-import { getPreferences } from "@/lib/preferences";
+import { getPreferences, scopePreferences } from "@/lib/preferences";
 import { getServiceContext } from "@/lib/server-context";
 import { listRunSummaries } from "@/lib/services/runs";
 
 export const metadata = { title: "Test Runs" };
 
 export default async function RunsPage() {
-  const [ctx, preferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const [ctx, storedPreferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const preferences = await scopePreferences(ctx.repo, storedPreferences);
   const runs = await listRunSummaries(ctx, preferences.projectId ? { projectId: preferences.projectId } : {});
   return (
     <>

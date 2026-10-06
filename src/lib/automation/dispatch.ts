@@ -66,11 +66,20 @@ export function getDispatcher(): Dispatcher {
     const workspace = path.resolve(".qa-joo-runs", run.id);
     fs.mkdirSync(workspace, { recursive: true });
     const log = fs.openSync(path.join(workspace, "runner.log"), "a");
-    const child = spawn(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "--silent", "qa:runner", "--", "--run", run.id], {
+    // Only what the runner needs: no database keys, AI keys or dispatch tokens.
+    const env: Record<string, string | undefined> = {
+      QA_JOO_URL: config.publicUrl,
+      RUNNER_CALLBACK_SECRET: config.runner.callbackSecret,
+    };
+    for (const key of ["PATH", "HOME", "TMPDIR", "LANG", "PLAYWRIGHT_BROWSERS_PATH", "PLAYWRIGHT_CHROMIUM_EXECUTABLE", "SystemRoot"]) {
+      if (process.env[key] !== undefined) env[key] = process.env[key];
+    }
+    const tsx = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
+    const child = spawn(process.execPath, [tsx, path.join("runner", "qa-runner.ts"), "--run", run.id], {
       cwd: process.cwd(),
       detached: true,
       stdio: ["ignore", log, log],
-      env: { ...process.env, QA_JOO_URL: config.publicUrl },
+      env: env as NodeJS.ProcessEnv,
     });
     child.unref();
     return { externalUrl: null, note: `Local runner started (pid ${child.pid}).` };

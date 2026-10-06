@@ -42,7 +42,7 @@ concurrency:
 jobs:
   run:
     name: Run approved Playwright specs
-    if: ${{ vars.QA_JOO_URL != '' }}
+    if: ${{ vars.QA_JOO_URL != '' && (github.event_name != 'schedule' || vars.QA_JOO_PROJECT_KEY != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

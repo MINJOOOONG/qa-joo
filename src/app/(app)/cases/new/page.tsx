@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { createCaseAction } from "@/app/actions/cases";
 import { flattenSections } from "@/lib/domain/sections";
 import { getPreferences } from "@/lib/preferences";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { getServiceContext } from "@/lib/server-context";
 
 export const metadata = { title: "New Test Case" };
@@ -16,7 +17,7 @@ export default async function NewCasePage({ searchParams }: PageProps<"/cases/ne
     projects.find((p) => p.id === requested || p.key === requested) ??
     projects.find((p) => p.id === preferences.projectId) ??
     (projects.length === 1 ? projects[0] : null);
-  const returnTo = typeof params.returnTo === "string" && params.returnTo.startsWith("/") ? params.returnTo : "/cases";
+  const returnTo = safeRedirectPath(params.returnTo, "/cases");
 
   if (!project) {
     return (

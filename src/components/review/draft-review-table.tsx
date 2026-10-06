@@ -24,9 +24,11 @@ export interface DraftRow {
 }
 
 export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId: string; projectKey: string; drafts: DraftRow[] }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [rawSelected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  // Drafts reviewed elsewhere disappear after a refresh; never act on (or count) stale selections.
+  const selected = new Set(drafts.filter((draft) => rawSelected.has(draft.id)).map((draft) => draft.id));
   const allSelected = selected.size === drafts.length && drafts.length > 0;
 
   const toggle = (set: Set<string>, id: string) => {

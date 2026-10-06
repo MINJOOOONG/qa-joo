@@ -81,3 +81,17 @@ describe("parsePlaywrightReport", () => {
     expect(stripAnsi("\u001b[2mdim\u001b[22m")).toBe("dim");
   });
 });
+
+describe("aggregateByFile", () => {
+  const base = { title: "t", durationMs: 10, errorMessage: null, screenshotPath: null, tracePath: null };
+  it("fails a file when any of its tests failed", async () => {
+    const { aggregateByFile } = await import("./playwright-report");
+    const map = aggregateByFile([
+      { ...base, file: "a.spec.ts", status: "passed" },
+      { ...base, file: "a.spec.ts", status: "failed", errorMessage: "boom" },
+      { ...base, file: "b.spec.ts", status: "skipped" },
+    ]);
+    expect(map.get("a.spec.ts")).toMatchObject({ status: "failed", errorMessage: "boom", durationMs: 20 });
+    expect(map.get("b.spec.ts")?.status).toBe("skipped");
+  });
+});

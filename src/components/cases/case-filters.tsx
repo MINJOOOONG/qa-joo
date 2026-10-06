@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,8 @@ export function CaseFilters({
   const pathname = usePathname();
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
+  // Set by Clear so the debounced search does not re-apply the old filters from stale params.
+  const skipDebounce = useRef(false);
 
   const update = (key: string, value: string | null) => {
     const next = new URLSearchParams(params.toString());
@@ -69,6 +71,10 @@ export function CaseFilters({
   };
 
   useEffect(() => {
+    if (skipDebounce.current) {
+      skipDebounce.current = false;
+      return;
+    }
     const current = params.get("q") ?? "";
     if (q === current) return;
     const timer = setTimeout(() => update("q", q.trim() || null), 250);
@@ -143,6 +149,7 @@ export function CaseFilters({
           variant="ghost"
           size="sm"
           onClick={() => {
+            skipDebounce.current = q !== "";
             setQ("");
             router.replace(pathname, { scroll: false });
           }}

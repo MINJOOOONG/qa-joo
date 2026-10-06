@@ -12,6 +12,7 @@ import {
   updateTestCase,
 } from "@/lib/services/cases";
 import { addCasesToRun } from "@/lib/services/runs";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { formError, type FormState } from "./form-state";
 
 function caseFields(formData: FormData) {
@@ -37,11 +38,6 @@ function caseFields(formData: FormData) {
   };
 }
 
-function safeReturn(value: FormDataEntryValue | null, fallback: string): string {
-  const path = typeof value === "string" ? value : "";
-  return path.startsWith("/") && !path.startsWith("//") ? path : fallback;
-}
-
 export async function createCaseAction(_state: FormState, formData: FormData): Promise<FormState> {
   let id: string;
   try {
@@ -52,7 +48,7 @@ export async function createCaseAction(_state: FormState, formData: FormData): P
     return formError(error);
   }
   revalidatePath("/", "layout");
-  redirect(formData.get("addAnother") === "1" ? safeReturn(formData.get("returnTo"), "/cases") : `/cases/${id}`);
+  redirect(formData.get("addAnother") === "1" ? safeRedirectPath(formData.get("returnTo"), "/cases") : `/cases/${id}`);
 }
 
 export async function updateCaseAction(caseId: string, _state: FormState, formData: FormData): Promise<FormState> {
@@ -63,7 +59,7 @@ export async function updateCaseAction(caseId: string, _state: FormState, formDa
     return formError(error);
   }
   revalidatePath("/", "layout");
-  redirect(safeReturn(formData.get("returnTo"), `/cases/${caseId}`));
+  redirect(safeRedirectPath(formData.get("returnTo"), `/cases/${caseId}`));
 }
 
 export async function duplicateCaseAction(caseId: string): Promise<FormState> {
@@ -86,7 +82,7 @@ export async function deleteCaseAction(caseId: string, returnTo: string): Promis
     return formError(error);
   }
   revalidatePath("/", "layout");
-  redirect(returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/cases");
+  redirect(safeRedirectPath(returnTo, "/cases"));
 }
 
 export async function reviewCaseAction(caseId: string, decision: "approve" | "reject"): Promise<FormState> {
@@ -108,12 +104,15 @@ export async function reviewManyAction(projectId: string, caseIds: string[], dec
       revalidatePath("/", "layout");
       return { error: null, fieldErrors: {}, success: Date.now(), message: `Approved ${count} case(s).` };
     }
-    for (const id of caseIds) await reviewTestCase(ctx, id, "reject");
+    if (caseIds.length === 0) return { error: null, fieldErrors: {}, success: Date.now(), message: "Nothing to reject." };
+    // Only this project's remaining drafts: cases reviewed elsewhere in the meantime are skipped.
+    const drafts = await ctx.repo.listTestCases({ projectId, reviewStatuses: ["draft"], ids: caseIds });
+    for (const draft of drafts) await reviewTestCase(ctx, draft.id, "reject");
+    revalidatePath("/", "layout");
+    return { error: null, fieldErrors: {}, success: Date.now(), message: `Rejected ${drafts.length} case(s).` };
   } catch (error) {
     return formError(error);
   }
-  revalidatePath("/", "layout");
-  return { error: null, fieldErrors: {}, success: Date.now(), message: `Rejected ${caseIds.length} case(s).` };
 }
 
 export async function addToRunAction(runId: string, caseIds: string[]): Promise<FormState> {

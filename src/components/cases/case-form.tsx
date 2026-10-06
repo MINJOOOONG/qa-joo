@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { initialFormState, type FormState } from "@/app/actions/form-state";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 import {
   CASE_TYPES,
   CASE_TYPE_LABELS,
@@ -44,6 +45,7 @@ export function CaseForm({
   mode: "create" | "edit";
 }) {
   const [state, formAction, pending] = useActionState(action, initialFormState);
+  const onSubmit = useFormSubmit(formAction);
   const [steps, setSteps] = useState<string[]>(defaults?.steps?.length ? defaults.steps : [""]);
   const errors = state.fieldErrors;
   const stepError = Object.entries(errors).find(([key]) => key.startsWith("steps"))?.[1];
@@ -56,7 +58,7 @@ export function CaseForm({
   };
 
   return (
-    <form action={formAction} className="flex max-w-3xl flex-col gap-4" noValidate>
+    <form onSubmit={onSubmit} className="flex max-w-3xl flex-col gap-4" noValidate>
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <Field label="Title" htmlFor="title" required error={errors.title}>

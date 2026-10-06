@@ -7,7 +7,6 @@ import {
   FAILURE_CATEGORIES,
   PRIORITIES,
   RESULT_STATUSES,
-  RUNNER_KINDS,
   SEVERITIES,
 } from "./constants";
 
@@ -24,11 +23,13 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
+/** http(s) URL, normalized (lower-case scheme/host) so it always matches the database CHECK. */
 export const httpUrlSchema = z
   .string()
   .trim()
   .max(2048, "URL is too long.")
-  .refine(isHttpUrl, "Enter a valid http(s) URL.");
+  .refine(isHttpUrl, "Enter a valid http(s) URL.")
+  .transform((value) => new URL(value).href);
 
 const GITHUB_REPO_PATTERN = /^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}\/?$/;
 
@@ -112,8 +113,7 @@ export const tagsSchema = z
   .max(20)
   .transform((tags) => Array.from(new Set(tags)));
 
-export const testCaseInputSchema = z.object({
-  projectId: z.string().min(1),
+const testCaseFields = {
   sectionId: z.preprocess(emptyToNull, z.string().nullable().optional()),
   title: z.string().trim().min(1, "Title is required.").max(200),
   description: optionalText(4000),
@@ -122,12 +122,20 @@ export const testCaseInputSchema = z.object({
   expectedResult: z.string().trim().min(1, "Expected result is required.").max(2000),
   type: z.enum(CASE_TYPES),
   priority: z.enum(PRIORITIES),
-  automationStatus: z.enum(AUTOMATION_STATUSES).default("manual"),
-  tags: tagsSchema.default([]),
+  automationStatus: z.enum(AUTOMATION_STATUSES),
+  tags: tagsSchema,
+};
+
+export const testCaseInputSchema = z.object({
+  ...testCaseFields,
+  projectId: z.string().min(1),
+  automationStatus: testCaseFields.automationStatus.default("manual"),
+  tags: testCaseFields.tags.default([]),
 });
 export type TestCaseInput = z.infer<typeof testCaseInputSchema>;
 
-export const testCaseUpdateSchema = testCaseInputSchema.omit({ projectId: true }).partial();
+/** Partial update: fields that are not sent stay untouched (no defaults applied). */
+export const testCaseUpdateSchema = z.object(testCaseFields).partial();
 export type TestCaseUpdate = z.infer<typeof testCaseUpdateSchema>;
 
 export const caseSelectionSchema = z.discriminatedUnion("mode", [
@@ -212,7 +220,6 @@ export const createAutomationRunSchema = z.object({
   testCaseIds: z.array(z.string().min(1)).max(500).optional(),
   environment: z.enum(ENVIRONMENTS).optional(),
   targetUrl: z.preprocess(emptyToNull, httpUrlSchema.nullable().optional()),
-  runner: z.enum(RUNNER_KINDS).optional(),
 });
 export type CreateAutomationRunInput = z.infer<typeof createAutomationRunSchema>;
 

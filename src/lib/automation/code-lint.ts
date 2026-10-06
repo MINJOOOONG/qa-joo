@@ -18,6 +18,60 @@ const FORBIDDEN: Array<[RegExp, string]> = [
   [/\bglobalThis\b|\b__dirname\b|\b__filename\b/, "Global / filesystem helpers are not allowed."],
 ];
 
+/** Identifiers that reach Node internals however they are spelled (e.g. `x["constructor"]` is caught via the string check). */
+const FORBIDDEN_IDENTIFIERS = ["process", "globalThis", "global", "require", "module", "Function", "constructor", "__proto__", "eval"];
+
+/**
+ * Blanks out comments and string/template literal contents (keeping quotes) so the checks below
+ * see code structure only, and returns the literal contents separately.
+ */
+export function splitCode(code: string): { code: string; literals: string[] } {
+  let out = "";
+  const literals: string[] = [];
+  let i = 0;
+  while (i < code.length) {
+    const ch = code[i];
+    const next = code[i + 1];
+    if (ch === "/" && next === "/") {
+      while (i < code.length && code[i] !== "\n") i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      const end = code.indexOf("*/", i + 2);
+      i = end === -1 ? code.length : end + 2;
+      out += " ";
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      let j = i + 1;
+      let literal = "";
+      while (j < code.length && code[j] !== ch) {
+        if (code[j] === "\\") {
+          literal += code[j + 1] ?? "";
+          j += 2;
+          continue;
+        }
+        if (ch === "`" && code[j] === "$" && code[j + 1] === "{") {
+          // Template expressions are code: keep them visible to the checks.
+          const close = code.indexOf("}", j);
+          out += ` ${code.slice(j + 2, close === -1 ? code.length : close)} `;
+          j = close === -1 ? code.length : close + 1;
+          continue;
+        }
+        literal += code[j];
+        j += 1;
+      }
+      literals.push(literal);
+      out += ch + ch;
+      i = j + 1;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return { code: out, literals };
+}
+
 export function lintAutomationCode(code: string): LintReport {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -29,7 +83,16 @@ export function lintAutomationCode(code: string): LintReport {
   for (const source of imports.filter((value) => value !== "@playwright/test")) {
     errors.push(`Import of "${source}" is not allowed; only @playwright/test may be imported.`);
   }
-  for (const [pattern, message] of FORBIDDEN) if (pattern.test(code)) errors.push(message);
+  const { code: structure, literals } = splitCode(code);
+  for (const [pattern, message] of FORBIDDEN) if (pattern.test(structure)) errors.push(message);
+  for (const name of FORBIDDEN_IDENTIFIERS) {
+    if (new RegExp(`(^|[^\\w$.])${name}(?![\\w$])|\\.\\s*${name}(?![\\w$])`).test(structure)) {
+      errors.push(`"${name}" is not allowed in specs.`);
+    }
+  }
+  for (const literal of literals) {
+    if (FORBIDDEN_IDENTIFIERS.includes(literal.trim())) errors.push(`"${literal.trim()}" is not allowed as a property name in specs.`);
+  }
   if (!/\btest\s*(\.\w+)?\s*\(/.test(code)) errors.push("No test() block found.");
   if (!/\bexpect\s*\(/.test(code)) warnings.push("No expect() assertion found; the test can only fail on errors.");
   if (/waitForTimeout\s*\(/.test(code)) warnings.push("waitForTimeout() makes tests slow and flaky; prefer web-first assertions.");

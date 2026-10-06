@@ -57,6 +57,8 @@ export async function deleteProjectAction(projectId: string, _state: FormState, 
   try {
     const ctx = await getServiceContext();
     await deleteProject(ctx, projectId, String(formData.get("confirmKey") ?? ""));
+    const store = await cookies();
+    if (store.get(PROJECT_COOKIE)?.value === projectId) store.delete(PROJECT_COOKIE);
   } catch (error) {
     return formError(error);
   }

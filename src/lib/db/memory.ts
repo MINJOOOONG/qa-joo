@@ -11,7 +11,7 @@ import type {
   TestRun,
   TestRunCase,
 } from "@/lib/domain/types";
-import { caseKeyNumber } from "@/lib/domain/case-key";
+import { caseKeyNumber, highestCaseNumber } from "@/lib/domain/case-key";
 import type {
   AutomationResultWrite,
   AutomationRunPatch,
@@ -222,8 +222,8 @@ export class MemoryRepository implements Repository {
     return clone(this.data.testCases.find((c) => c.id === id) ?? null);
   }
 
-  async listCaseKeys(projectId: string) {
-    return this.data.testCases.filter((c) => c.projectId === projectId).map((c) => c.caseKey);
+  async highestCaseNumber(projectId: string) {
+    return highestCaseNumber(this.data.testCases.filter((c) => c.projectId === projectId).map((c) => c.caseKey));
   }
 
   async createTestCase(input: NewTestCase) {

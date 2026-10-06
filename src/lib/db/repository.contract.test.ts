@@ -92,7 +92,8 @@ describe.each(targets)("%s repository contract", (_name, make) => {
     await repo.setLastResult(a.id, "failed", new Date().toISOString());
     expect((await repo.listTestCases({ projectId: p.id, lastResults: ["failed"] })).map((c) => c.id)).toEqual([a.id]);
     expect((await repo.listTestCases({ projectId: p.id, lastResults: ["untested"] })).length).toBe(2);
-    expect((await repo.listCaseKeys(p.id)).sort()).toEqual([`${p.key}-TC-001`, `${p.key}-TC-002`, `${p.key}-TC-010`]);
+    expect(await repo.highestCaseNumber(p.id)).toBe(10);
+    expect(await repo.getTestCase("not-a-uuid")).toBeNull();
 
     await repo.deleteSection(child.id);
     expect((await repo.getTestCase(a.id))?.sectionId).toBeNull();

@@ -1,12 +1,13 @@
 import { ActivityList } from "@/components/activity/activity-list";
 import { PageHeader } from "@/components/common/page-header";
-import { getPreferences } from "@/lib/preferences";
+import { getPreferences, scopePreferences } from "@/lib/preferences";
 import { getServiceContext } from "@/lib/server-context";
 
 export const metadata = { title: "Activity" };
 
 export default async function ActivityPage() {
-  const [ctx, preferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const [ctx, storedPreferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const preferences = await scopePreferences(ctx.repo, storedPreferences);
   const [activities, projects] = await Promise.all([
     ctx.repo.listActivities({ projectId: preferences.projectId ?? undefined, limit: 200 }),
     ctx.repo.listProjects(),

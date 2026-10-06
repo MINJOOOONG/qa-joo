@@ -198,7 +198,8 @@ export async function createAutomationRun(
     environment: input.environment ?? testRun?.environment ?? project.environment,
     targetUrl,
     trigger: options.trigger ?? "manual",
-    runner: input.runner ?? options.defaultRunner,
+    // The runner is server configuration; clients cannot choose where specs execute.
+    runner: options.defaultRunner,
     branch: null,
     commitSha: null,
     status: "queued",
@@ -248,6 +249,8 @@ export interface RunnerManifest {
   project: { id: string; key: string; name: string };
   targetUrl: string;
   environment: string;
+  /** Every case the run covers; cases without an approved spec must still be reported. */
+  testCaseIds: string[];
   tests: Array<{ testCaseId: string; caseKey: string; title: string; filePath: string; code: string }>;
 }
 
@@ -267,6 +270,7 @@ export async function buildRunnerManifest(ctx: ServiceContext, id: string): Prom
     project: { id: project.id, key: project.key, name: project.name },
     targetUrl: run.targetUrl,
     environment: run.environment,
+    testCaseIds: run.testCaseIds.filter((id) => cases.has(id)),
     tests: tests
       .filter((test) => isSafeSpecPath(test.filePath) && cases.has(test.testCaseId))
       .map((test) => ({
@@ -282,13 +286,14 @@ export async function buildRunnerManifest(ctx: ServiceContext, id: string): Prom
 const TERMINAL: AutomationRunStatus[] = ["passed", "failed", "cancelled"];
 
 /**
- * Applies a runner callback: status transitions, per-case automation results, and mirroring of
- * verdicts into the linked test run. Finished runs are immutable, which also makes replays harmless.
+ * Applies a runner callback: per-case automation results, mirroring of verdicts into the linked
+ * test run, then the run status. Results are written before the terminal status so a callback that
+ * fails half-way can be retried; finished runs are immutable, which makes replays harmless.
  */
 export async function applyRunnerCallback(
   ctx: ServiceContext,
   raw: unknown,
-): Promise<{ run: AutomationRun; accepted: number; mirrored: number }> {
+): Promise<{ run: AutomationRun; accepted: number; mirrored: number; dropped: number }> {
   const payload = automationCallbackSchema.parse(raw);
   const run = await ctx.repo.getAutomationRun(payload.automationRunId);
   if (!run) throw notFound("Automation run", payload.automationRunId);
@@ -302,25 +307,23 @@ export async function applyRunnerCallback(
 
   const now = new Date().toISOString();
   const startedAt = run.startedAt ?? now;
-  const status: AutomationRunStatus =
-    payload.status ??
-    (payload.results.length ? (payload.results.some((r) => r.status === "failed") ? "failed" : "passed") : "running");
-  let updated = await ctx.repo.updateAutomationRun(run.id, {
-    status,
-    startedAt,
-    finishedAt: TERMINAL.includes(status) ? now : null,
-    branch: payload.branch ?? run.branch,
-    commitSha: payload.commitSha ?? run.commitSha,
-    externalUrl: payload.externalUrl ?? run.externalUrl,
-    error: payload.error ?? run.error,
-  });
+  if (!run.startedAt || run.status === "queued") {
+    await ctx.repo.updateAutomationRun(run.id, { status: "running", startedAt });
+  }
+
+  // Cases deleted while the run was in flight are skipped instead of failing the whole callback.
+  const reportedIds = Array.from(new Set(payload.results.map((result) => result.testCaseId)));
+  const liveCaseIds = new Set(
+    (await ctx.repo.listTestCases({ projectId: run.projectId, ids: reportedIds })).map((testCase) => testCase.id),
+  );
+  const results = payload.results.filter((result) => liveCaseIds.has(result.testCaseId));
 
   const testRun = run.testRunId ? await ctx.repo.getTestRun(run.testRunId) : null;
   const automationTests = new Map(
     (await ctx.repo.listAutomationTests({ projectId: run.projectId, testCaseIds: run.testCaseIds })).map((t) => [t.testCaseId, t]),
   );
   let mirrored = 0;
-  for (const item of payload.results) {
+  for (const item of results) {
     const saved = await ctx.repo.upsertAutomationResult({
       automationRunId: run.id,
       testCaseId: item.testCaseId,
@@ -346,21 +349,39 @@ export async function applyRunnerCallback(
       if (mirroredResult) mirrored += 1;
     }
   }
-  if (testRun && payload.results.length) await ctx.repo.updateTestRun(testRun.id, {});
+  if (testRun && results.length) await ctx.repo.updateTestRun(testRun.id, {});
+
+  // Without an explicit status the run finishes only once every remaining case has reported.
+  const allResults = await ctx.repo.listAutomationResults({ automationRunId: run.id });
+  let status: AutomationRunStatus = payload.status ?? "running";
+  if (!payload.status) {
+    const remaining = (await ctx.repo.listTestCases({ projectId: run.projectId, ids: run.testCaseIds })).map((c) => c.id);
+    const reported = new Set(allResults.map((result) => result.testCaseId));
+    if (remaining.length > 0 && remaining.every((id) => reported.has(id))) {
+      status = allResults.some((result) => result.status === "failed") ? "failed" : "passed";
+    }
+  }
+  const updated = await ctx.repo.updateAutomationRun(run.id, {
+    status,
+    startedAt,
+    finishedAt: TERMINAL.includes(status) ? new Date().toISOString() : null,
+    branch: payload.branch ?? run.branch,
+    commitSha: payload.commitSha ?? run.commitSha,
+    externalUrl: payload.externalUrl ?? run.externalUrl,
+    error: payload.error ?? run.error,
+  });
 
   if (TERMINAL.includes(status)) {
-    const results = await ctx.repo.listAutomationResults({ automationRunId: run.id });
-    const failed = results.filter((r) => r.status === "failed").length;
+    const failed = allResults.filter((r) => r.status === "failed").length;
     await logActivity(ctx, {
       projectId: run.projectId,
       action: `automation_run.${status}`,
       entityType: "automation_run",
       entityId: run.id,
-      message: `Automation run ${status}: ${results.length - failed} passed, ${failed} failed`,
+      message: `Automation run ${status}: ${allResults.length - failed} passed, ${failed} failed`,
     });
-    updated = (await ctx.repo.getAutomationRun(run.id)) ?? updated;
   }
-  return { run: updated, accepted: payload.results.length, mirrored };
+  return { run: updated, accepted: results.length, mirrored, dropped: payload.results.length - results.length };
 }
 
 export interface AutomationRunDetail {

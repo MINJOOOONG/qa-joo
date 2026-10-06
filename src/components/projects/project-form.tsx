@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { initialFormState, type FormState } from "@/app/actions/form-state";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 import { ENVIRONMENTS, ENVIRONMENT_LABELS, type Environment } from "@/lib/domain/constants";
 
 interface ProjectValues {
@@ -35,6 +36,7 @@ export function ProjectForm({
   defaults?: Partial<ProjectValues>;
 }) {
   const [state, formAction, pending] = useActionState(action, initialFormState);
+  const onSubmit = useFormSubmit(formAction);
   const [name, setName] = useState(defaults?.name ?? "");
   const [key, setKey] = useState(defaults?.key ?? "");
   const [keyTouched, setKeyTouched] = useState(mode === "edit");
@@ -45,7 +47,7 @@ export function ProjectForm({
   }, [state.success, state.message]);
 
   return (
-    <form action={formAction} className="flex max-w-2xl flex-col gap-4" noValidate>
+    <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-4" noValidate>
       <div className="grid grid-cols-[1fr_160px] gap-4">
         <Field label="Project Name" htmlFor="name" required error={errors.name}>
           <Input

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/auth";
 import { getConfig } from "@/lib/env";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export interface SignInState {
   error: string | null;
@@ -15,10 +16,6 @@ const signInSchema = z.object({
   next: z.string().optional(),
 });
 
-/** Only allow same-origin relative redirects after sign-in. */
-function safeNext(next: string | undefined): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-}
 
 export async function signIn(_state: SignInState, formData: FormData): Promise<SignInState> {
   if (!getConfig().authEnabled) redirect("/dashboard");
@@ -30,7 +27,7 @@ export async function signIn(_state: SignInState, formData: FormData): Promise<S
     password: parsed.data.password,
   });
   if (error) return { error: "Invalid email or password." };
-  redirect(safeNext(parsed.data.next));
+  redirect(safeRedirectPath(parsed.data.next, "/dashboard"));
 }
 
 export async function signOut(): Promise<void> {

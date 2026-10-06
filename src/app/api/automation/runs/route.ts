@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       if (!project) throw new AppError("not_found", `Project ${body.projectKey} was not found.`);
       const run = await createAutomationRun(
         ctx,
-        { projectId: project.id, testRunId: body.testRunId, environment: body.environment, runner: "external" },
+        { projectId: project.id, testRunId: body.testRunId, environment: body.environment },
         {
           defaultRunner: "external",
           allowPrivateTargets: config.analyzer.allowPrivateTargets,

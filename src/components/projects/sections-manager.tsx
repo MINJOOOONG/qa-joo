@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, NativeSelect } from "@/components/ui/input";
 import { createSectionAction, deleteSectionAction, renameSectionAction } from "@/app/actions/sections";
 import { initialFormState } from "@/app/actions/form-state";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 import type { SectionNode } from "@/lib/domain/sections";
 
 export function SectionsManager({
@@ -20,6 +21,7 @@ export function SectionsManager({
 }) {
   const [state, action, pending] = useActionState(createSectionAction.bind(null, projectId), initialFormState);
   const formRef = useRef<HTMLFormElement>(null);
+  const onSubmit = useFormSubmit(action);
   const [editing, setEditing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [busy, startTransition] = useTransition();
@@ -96,7 +98,7 @@ export function SectionsManager({
           </ul>
         )}
       </div>
-      <form ref={formRef} action={action} className="flex items-center gap-2">
+      <form ref={formRef} onSubmit={onSubmit} className="flex items-center gap-2">
         <Input name="name" placeholder="New section name" className="max-w-64" required aria-label="Section name" />
         <NativeSelect name="parentId" className="max-w-64" aria-label="Parent section" defaultValue="">
           <option value="">Top level</option>

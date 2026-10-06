@@ -7,6 +7,7 @@ import { RunPoller } from "@/components/automation/run-poller";
 import { AutomationRunStatusBadge, EnvironmentBadge, ResultBadge } from "@/components/common/badges";
 import { AUTOMATION_TRIGGER_LABELS } from "@/lib/domain/constants";
 import { formatDuration } from "@/lib/domain/run-stats";
+import { formatRelative } from "@/lib/utils";
 import { isAppError } from "@/lib/errors";
 import { getServiceContext } from "@/lib/server-context";
 import { getAutomationRunDetail } from "@/lib/services/automation";
@@ -156,7 +157,11 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
                     ) : null}
                   </div>
                 </div>
-                <FailureAnalysisPanel resultId={result.id} analysis={result.analysis} />
+                <FailureAnalysisPanel
+                  resultId={result.id}
+                  analysis={result.analysis}
+                  analyzedLabel={result.analysis ? formatRelative(result.analysis.analyzedAt) : null}
+                />
               </div>
             ) : null}
           </section>

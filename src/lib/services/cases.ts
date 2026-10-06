@@ -49,7 +49,7 @@ export async function createTestCase(ctx: ServiceContext, raw: unknown, options:
   }
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const caseKey = nextCaseKey(project.key, await ctx.repo.listCaseKeys(project.id));
+    const caseKey = nextCaseKey(project.key, await ctx.repo.highestCaseNumber(project.id));
     try {
       const testCase = await ctx.repo.createTestCase({
         projectId: project.id,
@@ -130,6 +130,11 @@ export async function duplicateTestCase(ctx: ServiceContext, id: string): Promis
     priority: source.priority,
     automationStatus: source.automationStatus === "automated" ? "candidate" : source.automationStatus,
     tags: source.tags,
+  }, {
+    // A copy of an unreviewed AI draft must stay behind the review gate.
+    source: source.source,
+    reviewStatus: source.reviewStatus === "approved" ? "approved" : "draft",
+    aiRationale: source.aiRationale,
   });
 }
 

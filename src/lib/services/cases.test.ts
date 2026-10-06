@@ -68,6 +68,18 @@ describe("test cases", () => {
     expect(copy).toMatchObject({ caseKey: "RF-TC-002", title: `${original.title} (copy)`, tags: ["smoke"], source: "manual" });
   });
 
+  it("keeps a duplicated AI draft behind the review gate", async () => {
+    const ctx = memoryContext();
+    const project = await seedProject(ctx);
+    const draft = await createTestCase(
+      ctx,
+      { projectId: project.id, title: "AI", steps: ["a"], expectedResult: "b", type: "functional", priority: "medium" },
+      { source: "ai_generated", aiRationale: "why" },
+    );
+    const copy = await duplicateTestCase(ctx, draft.id);
+    expect(copy).toMatchObject({ source: "ai_generated", reviewStatus: "draft", aiRationale: "why" });
+  });
+
   it("moves cases up when their section is deleted", async () => {
     const ctx = memoryContext();
     const project = await seedProject(ctx);

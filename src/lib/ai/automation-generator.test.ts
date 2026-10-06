@@ -34,6 +34,8 @@ describe("Playwright draft generation", () => {
   it("splits compound steps and builds assertions from quoted text", () => {
     expect(splitCompoundStep('Enter "x" in "URL" and click "Go"')).toEqual(['Enter "x" in "URL"', 'click "Go"']);
     expect(assertionFor("A message 'Saved successfully' appears.")).toEqual(['await expect(page.getByText("Saved successfully")).toBeVisible();']);
+    expect(assertionFor("The user's dashboard shows \"Welcome back\".")).toEqual(['await expect(page.getByText("Welcome back")).toBeVisible();']);
+    expect(assertionFor("It's the user's page.\nNext line")[0]).toBe("// TODO: assert the expected result — It's the user's page. Next line");
   });
 
   it("wraps LLM output with a review header", async () => {

@@ -96,7 +96,8 @@ export interface Repository {
 
   listTestCases(filter?: TestCaseFilter): Promise<TestCase[]>;
   getTestCase(id: string): Promise<TestCase | null>;
-  listCaseKeys(projectId: string): Promise<string[]>;
+  /** Highest numeric case-key sequence in the project (0 when it has no cases). */
+  highestCaseNumber(projectId: string): Promise<number>;
   createTestCase(input: NewTestCase): Promise<TestCase>;
   updateTestCase(id: string, patch: TestCasePatch): Promise<TestCase>;
   setLastResult(id: string, status: ResultStatus | null, at: string | null): Promise<void>;

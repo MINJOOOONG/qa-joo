@@ -25,17 +25,19 @@ export interface SafeFetchResult {
 let directAgent: Agent | null = null;
 let permissiveAgent: Agent | null = null;
 let proxyAgent: EnvHttpProxyAgent | null = null;
+let guardedProxyAgent: EnvHttpProxyAgent | null = null;
 
 /**
  * Direct connections validate every resolved address at connect time (anti DNS rebinding).
  * When the host environment forces an HTTP(S) proxy, the proxy resolves names, so only the
- * pre-flight DNS validation in `assertSafeTarget` applies.
+ * pre-flight DNS validation in `assertSafeTarget` applies; hosts matched by NO_PROXY still connect
+ * directly, so the proxy agent carries the guarded lookup as well.
  */
 function dispatcherFor(allowPrivate: boolean): Dispatcher {
   const proxied = Boolean(process.env.HTTPS_PROXY || process.env.https_proxy);
   if (proxied && !allowPrivate) {
-    proxyAgent ??= new EnvHttpProxyAgent();
-    return proxyAgent;
+    guardedProxyAgent ??= new EnvHttpProxyAgent({ connect: { lookup: guardedLookup } });
+    return guardedProxyAgent;
   }
   if (allowPrivate) {
     return proxied ? (proxyAgent ??= new EnvHttpProxyAgent()) : (permissiveAgent ??= new Agent());

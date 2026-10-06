@@ -81,3 +81,30 @@ export function parsePlaywrightReport(report: PlaywrightJsonReport): ParsedSpecR
     };
   });
 }
+
+/**
+ * One QA JOO case maps to one spec file, but a file may hold several tests. The case fails if any
+ * test in the file failed, passes if at least one passed and none failed, and is skipped otherwise.
+ */
+export function aggregateByFile(results: ParsedSpecResult[]): Map<string, ParsedSpecResult> {
+  const byFile = new Map<string, ParsedSpecResult>();
+  for (const result of results) {
+    const current = byFile.get(result.file);
+    if (!current) {
+      byFile.set(result.file, { ...result });
+      continue;
+    }
+    const failed = current.status === "failed" || result.status === "failed";
+    const firstFailure = current.status === "failed" ? current : result.status === "failed" ? result : null;
+    byFile.set(result.file, {
+      file: result.file,
+      title: current.title,
+      status: failed ? "failed" : current.status === "passed" || result.status === "passed" ? "passed" : "skipped",
+      durationMs: current.durationMs + result.durationMs,
+      errorMessage: firstFailure?.errorMessage ?? null,
+      screenshotPath: firstFailure?.screenshotPath ?? null,
+      tracePath: firstFailure?.tracePath ?? null,
+    });
+  }
+  return byFile;
+}

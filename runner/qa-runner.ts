@@ -18,7 +18,7 @@ import { createWriteStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isSafeSpecPath } from "../src/lib/automation/paths";
-import { parsePlaywrightReport, stripAnsi, type ParsedSpecResult, type PlaywrightJsonReport } from "../src/lib/automation/playwright-report";
+import { aggregateByFile, parsePlaywrightReport, stripAnsi, type ParsedSpecResult, type PlaywrightJsonReport } from "../src/lib/automation/playwright-report";
 import { signRequest } from "../src/lib/automation/runner-auth";
 
 interface Manifest {
@@ -26,7 +26,19 @@ interface Manifest {
   project: { id: string; key: string; name: string };
   targetUrl: string;
   environment: string;
+  testCaseIds?: string[];
   tests: Array<{ testCaseId: string; caseKey: string; title: string; filePath: string; code: string }>;
+}
+
+/**
+ * Playwright executes AI-drafted (human-approved) specs, so it gets only what it needs:
+ * no RUNNER_CALLBACK_SECRET, tokens or other credentials from this process.
+ */
+function playwrightEnv(): Record<string, string | undefined> {
+  const allow = ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "CI", "PLAYWRIGHT_BROWSERS_PATH", "SystemRoot", "ComSpec"];
+  const env: Record<string, string | undefined> = { FORCE_COLOR: "0" };
+  for (const key of allow) if (process.env[key] !== undefined) env[key] = process.env[key];
+  return env;
 }
 
 function argument(name: string): string | undefined {
@@ -80,10 +92,8 @@ async function upload(file: string | null, name: string, contentType: string): P
 async function runPlaywright(configPath: string, logFile: string): Promise<number> {
   const out = createWriteStream(logFile);
   return new Promise((resolve) => {
-    const child = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["playwright", "test", "--config", configPath], {
-      cwd: root,
-      env: { ...process.env, FORCE_COLOR: "0" },
-    });
+    const cli = path.join(root, "node_modules", "@playwright", "test", "cli.js");
+    const child = spawn(process.execPath, [cli, "test", "--config", configPath], { cwd: root, env: playwrightEnv() as NodeJS.ProcessEnv });
     child.stdout.on("data", (chunk) => {
       process.stdout.write(chunk);
       out.write(chunk);
@@ -157,25 +167,34 @@ async function main() {
   const exitCode = await runPlaywright(configPath, logFile);
   log(`playwright exited with code ${exitCode}`);
 
-  let parsed: ParsedSpecResult[] = [];
+  let parsed = new Map<string, ParsedSpecResult>();
   let reportErrors: string[] = [];
   try {
     const report = JSON.parse(await fs.readFile(path.join(workspace, "report.json"), "utf8")) as PlaywrightJsonReport;
-    parsed = parsePlaywrightReport(report);
+    parsed = aggregateByFile(parsePlaywrightReport(report));
     reportErrors = (report.errors ?? []).map((error) => stripAnsi(error.message ?? "")).filter(Boolean);
   } catch {
     reportErrors = ["Playwright did not produce a JSON report."];
   }
   const logUrl = await upload(logFile, "playwright-log", "text/plain");
 
-  const results = [];
+  type Result = {
+    testCaseId: string;
+    status: "passed" | "failed" | "skipped";
+    durationMs: number;
+    errorMessage: string | null;
+    screenshotUrl?: string | null;
+    traceUrl?: string | null;
+    logUrl: string | null;
+  };
+  const results: Result[] = [];
   for (const test of manifest.tests) {
     const relative = test.filePath.replace(/^tests\//, "");
-    const outcome = parsed.find((result) => result.file.endsWith(relative));
+    const outcome = [...parsed.values()].find((result) => result.file === relative || result.file.endsWith(`/${relative}`));
     if (!outcome || !isSafeSpecPath(test.filePath)) {
       results.push({
         testCaseId: test.testCaseId,
-        status: "failed" as const,
+        status: "failed",
         durationMs: 0,
         errorMessage: reportErrors[0]?.slice(0, 8000) ?? "The spec did not run (check for syntax errors).",
         logUrl,
@@ -192,13 +211,27 @@ async function main() {
       logUrl: outcome.status === "failed" ? logUrl : null,
     });
   }
+  // Cases in the run whose approved spec is gone are reported, never silently dropped.
+  const withSpec = new Set(manifest.tests.map((test) => test.testCaseId));
+  for (const testCaseId of manifest.testCaseIds ?? []) {
+    if (withSpec.has(testCaseId)) continue;
+    results.push({ testCaseId, status: "failed", durationMs: 0, errorMessage: "No approved Playwright spec for this case.", logUrl: null });
+  }
   const failed = results.filter((result) => result.status === "failed").length;
+  // A crash, config error or missing report fails the run even if no individual case failed.
+  const runFailed = failed > 0 || reportErrors.length > 0 || exitCode !== 0;
   await call(
     "POST",
     "/api/automation/results",
-    JSON.stringify({ automationRunId: runId, status: failed ? "failed" : "passed", ...ciContext(), results }),
+    JSON.stringify({
+      automationRunId: runId,
+      status: runFailed ? "failed" : "passed",
+      error: runFailed && !failed ? (reportErrors[0] ?? `Playwright exited with code ${exitCode}.`).slice(0, 4000) : null,
+      ...ciContext(),
+      results,
+    }),
   );
-  log(`reported ${results.length} result(s): ${results.length - failed} passed, ${failed} failed`);
+  log(`reported ${results.length} result(s): ${results.length - failed} passed/skipped, ${failed} failed`);
 }
 
 main().catch(async (error: Error) => {

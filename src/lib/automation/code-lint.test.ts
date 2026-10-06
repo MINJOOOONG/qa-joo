@@ -42,3 +42,20 @@ describe("automation code lint", () => {
     expect(warnings).toContain("TODO");
   });
 });
+
+describe("lintAutomationCode escape hatches", () => {
+  const wrap = (body: string) => `import { test, expect } from "@playwright/test";\ntest("x", async ({ page }) => {\n${body}\n  await expect(page).toHaveTitle(/x/);\n});\n`;
+  it.each([
+    "const p = globalThis;",
+    "const e = page[\"constructor\"];",
+    "const f = (() => {}).constructor;",
+    "const g = global.process;",
+    "const m = module;",
+  ])("blocks %s", (body) => {
+    expect(lintAutomationCode(wrap(body)).errors.length).toBeGreaterThan(0);
+  });
+  it("ignores forbidden words inside strings and comments", () => {
+    const report = lintAutomationCode(wrap('  // the process is documented\n  await page.getByText("Our process").click();'));
+    expect(report.errors).toEqual([]);
+  });
+});

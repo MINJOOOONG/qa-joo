@@ -10,9 +10,17 @@ import { Button } from "@/components/ui/button";
 import { addSuggestedCasesAction } from "@/app/actions/automation";
 import { FAILURE_CATEGORY_LABELS } from "@/lib/domain/constants";
 import type { FailureAnalysis } from "@/lib/domain/types";
-import { formatRelative } from "@/lib/utils";
 
-export function FailureAnalysisPanel({ resultId, analysis }: { resultId: string; analysis: FailureAnalysis | null }) {
+export function FailureAnalysisPanel({
+  resultId,
+  analysis,
+  analyzedLabel,
+}: {
+  resultId: string;
+  analysis: FailureAnalysis | null;
+  /** Formatted on the server so the relative time cannot cause a hydration mismatch. */
+  analyzedLabel: string | null;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
@@ -47,7 +55,7 @@ export function FailureAnalysisPanel({ resultId, analysis }: { resultId: string;
         <Badge variant="outline">{FAILURE_CATEGORY_LABELS[analysis.category]}</Badge>
         <Badge variant={analysis.confidence === "high" ? "info" : "default"}>{analysis.confidence} confidence</Badge>
         <span className="text-xs text-muted-foreground">
-          {analysis.provider} · {formatRelative(analysis.analyzedAt)}
+          {analysis.provider} · {analyzedLabel}
         </span>
         <Button variant="ghost" size="sm" className="ml-auto" onClick={analyze} disabled={loading}>
           Re-analyze

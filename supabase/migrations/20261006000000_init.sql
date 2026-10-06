@@ -44,6 +44,8 @@ create table public.test_cases (
   project_id uuid not null references public.projects (id) on delete cascade,
   section_id uuid references public.sections (id) on delete set null,
   case_key text not null check (case_key ~ '^[A-Z][A-Z0-9]{1,9}-TC-[0-9]+$'),
+  -- Numeric part of case_key, used to allocate the next key without listing every case.
+  case_number integer generated always as ((substring(case_key from '-TC-([0-9]+)$'))::integer) stored,
   title text not null check (char_length(title) between 1 and 200),
   description text,
   preconditions text,
@@ -71,6 +73,7 @@ create table public.test_cases (
 create index test_cases_section_idx on public.test_cases (project_id, section_id);
 create index test_cases_review_idx on public.test_cases (project_id, review_status);
 create index test_cases_last_result_idx on public.test_cases (project_id, last_result);
+create index test_cases_case_number_idx on public.test_cases (project_id, case_number desc);
 
 -- Test runs --------------------------------------------------------------
 create table public.test_runs (

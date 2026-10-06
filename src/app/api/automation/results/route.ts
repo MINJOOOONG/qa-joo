@@ -7,8 +7,8 @@ import { applyRunnerCallback } from "@/lib/services/automation";
 export async function POST(request: Request) {
   try {
     const body = await readVerifiedRunnerBody(request, 2_000_000);
-    const { run, accepted, mirrored } = await applyRunnerCallback(await getRunnerContext(), parseJson(body));
-    return Response.json({ run: { id: run.id, status: run.status }, accepted, mirrored });
+    const { run, accepted, mirrored, dropped } = await applyRunnerCallback(await getRunnerContext(), parseJson(body));
+    return Response.json({ run: { id: run.id, status: run.status }, accepted, mirrored, dropped });
   } catch (error) {
     return errorResponse(error);
   }

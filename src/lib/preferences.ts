@@ -20,3 +20,14 @@ export async function getPreferences(): Promise<Preferences> {
     environment: env && ENVIRONMENTS.includes(env) ? env : "staging",
   };
 }
+
+/** Drops a remembered project that no longer exists (deleted elsewhere), falling back to "All projects". */
+export async function scopePreferences(
+  repo: { getProject(id: string): Promise<unknown> },
+  preferences: Preferences,
+): Promise<Preferences> {
+  if (preferences.projectId && !(await repo.getProject(preferences.projectId))) {
+    return { ...preferences, projectId: null };
+  }
+  return preferences;
+}

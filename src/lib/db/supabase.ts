@@ -37,7 +37,21 @@ import type {
 /* eslint-disable @typescript-eslint/no-explicit-any -- rows are untyped PostgREST JSON, mapped explicitly below */
 type Row = Record<string, any>;
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Ids come from URLs; a malformed one is simply "not found" instead of a Postgres cast error. */
+const isUuid = (value: string) => UUID_PATTERN.test(value);
+
+const PAGE_SIZE = 1000;
+const IN_CHUNK = 150;
+
+function chunk<T>(items: T[], size = IN_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 function fail(error: PostgrestError, context: string): never {
+  if (error.code === "22P02") throw new AppError("validation", `${context}: invalid identifier or value.`);
   if (error.code === "23505") throw new AppError("conflict", `${context}: a record with the same key already exists.`);
   if (error.code === "23503") throw new AppError("bad_request", `${context}: a referenced record does not exist.`);
   if (error.code === "23514") throw new AppError("validation", `${context}: value violates a database constraint.`);
@@ -277,6 +291,7 @@ export class SupabaseRepository implements Repository {
   }
 
   async getProject(id: string) {
+    if (!isUuid(id)) return null;
     const { data, error } = await this.db.from("projects").select("*").eq("id", id).maybeSingle();
     if (error) fail(error, "Get project");
     return data ? toProject(data) : null;
@@ -339,6 +354,7 @@ export class SupabaseRepository implements Repository {
   }
 
   async getSection(id: string) {
+    if (!isUuid(id)) return null;
     const { data, error } = await this.db.from("sections").select("*").eq("id", id).maybeSingle();
     if (error) fail(error, "Get section");
     return data ? toSection(data) : null;
@@ -373,35 +389,54 @@ export class SupabaseRepository implements Repository {
 
   // Test cases -------------------------------------------------------------
 
+  /** Reads every page of a query (PostgREST caps each response at `max_rows`). */
+  private async fetchAll(make: () => any, context: string): Promise<Row[]> {
+    const rows: Row[] = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await make().order("id").range(from, from + PAGE_SIZE - 1);
+      if (error) fail(error, context);
+      if (!data.length) return rows;
+      rows.push(...data);
+    }
+  }
+
   async listTestCases(filter: TestCaseFilter = {}) {
-    let query = this.db.from("test_cases").select("*");
-    if (filter.projectId) query = query.eq("project_id", filter.projectId);
-    if (filter.sectionId !== undefined) {
-      query = filter.sectionId === null ? query.is("section_id", null) : query.eq("section_id", filter.sectionId);
-    }
+    if (filter.projectId && !isUuid(filter.projectId)) return [];
+    if (filter.sectionId && !isUuid(filter.sectionId)) return [];
+    const build = (ids?: string[]) => {
+      let query = this.db.from("test_cases").select("*");
+      if (filter.projectId) query = query.eq("project_id", filter.projectId);
+      if (filter.sectionId !== undefined) {
+        query = filter.sectionId === null ? query.is("section_id", null) : query.eq("section_id", filter.sectionId);
+      }
+      if (ids) query = query.in("id", ids);
+      if (filter.types?.length) query = query.in("type", filter.types);
+      if (filter.priorities?.length) query = query.in("priority", filter.priorities);
+      if (filter.automationStatuses?.length) query = query.in("automation_status", filter.automationStatuses);
+      if (filter.sources?.length) query = query.in("source", filter.sources);
+      if (filter.reviewStatuses?.length) query = query.in("review_status", filter.reviewStatuses);
+      if (filter.lastResults?.length) {
+        const values = filter.lastResults.filter((value) => value !== "untested");
+        const clauses = values.length ? [`last_result.in.(${values.join(",")})`] : [];
+        if (filter.lastResults.includes("untested")) clauses.push("last_result.is.null", "last_result.eq.untested");
+        query = query.or(clauses.join(","));
+      }
+      const search = filter.search?.trim();
+      if (search) {
+        const pattern = ilikeValue(search);
+        query = query.or(`case_key.ilike.${pattern},title.ilike.${pattern}`);
+      }
+      return query;
+    };
+    let rows: Row[];
     if (filter.ids) {
-      if (filter.ids.length === 0) return [];
-      query = query.in("id", filter.ids);
+      const ids = Array.from(new Set(filter.ids.filter(isUuid)));
+      rows = [];
+      for (const part of chunk(ids)) rows.push(...(await this.fetchAll(() => build(part), "List test cases")));
+    } else {
+      rows = await this.fetchAll(() => build(), "List test cases");
     }
-    if (filter.types?.length) query = query.in("type", filter.types);
-    if (filter.priorities?.length) query = query.in("priority", filter.priorities);
-    if (filter.automationStatuses?.length) query = query.in("automation_status", filter.automationStatuses);
-    if (filter.sources?.length) query = query.in("source", filter.sources);
-    if (filter.reviewStatuses?.length) query = query.in("review_status", filter.reviewStatuses);
-    if (filter.lastResults?.length) {
-      const values = filter.lastResults.filter((value) => value !== "untested");
-      const clauses = values.length ? [`last_result.in.(${values.join(",")})`] : [];
-      if (filter.lastResults.includes("untested")) clauses.push("last_result.is.null", "last_result.eq.untested");
-      query = query.or(clauses.join(","));
-    }
-    const search = filter.search?.trim();
-    if (search) {
-      const pattern = ilikeValue(search);
-      query = query.or(`case_key.ilike.${pattern},title.ilike.${pattern}`);
-    }
-    const { data, error } = await query.limit(5000);
-    if (error) fail(error, "List test cases");
-    return data
+    return rows
       .map(toTestCase)
       .sort(
         (a, b) => a.projectId.localeCompare(b.projectId) || caseKeyNumber(a.caseKey) - caseKeyNumber(b.caseKey),
@@ -409,15 +444,24 @@ export class SupabaseRepository implements Repository {
   }
 
   async getTestCase(id: string) {
+    if (!isUuid(id)) return null;
     const { data, error } = await this.db.from("test_cases").select("*").eq("id", id).maybeSingle();
     if (error) fail(error, "Get test case");
     return data ? toTestCase(data) : null;
   }
 
-  async listCaseKeys(projectId: string) {
-    const { data, error } = await this.db.from("test_cases").select("case_key").eq("project_id", projectId);
-    if (error) fail(error, "List case keys");
-    return data.map((row) => row.case_key as string);
+  async highestCaseNumber(projectId: string) {
+    if (!isUuid(projectId)) return 0;
+    const { data, error } = await this.db
+      .from("test_cases")
+      .select("case_number")
+      .eq("project_id", projectId)
+      .not("case_number", "is", null)
+      .order("case_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) fail(error, "Read highest case key");
+    return data ? Number(data.case_number) : 0;
   }
 
   async createTestCase(input: NewTestCase) {
@@ -488,6 +532,7 @@ export class SupabaseRepository implements Repository {
   }
 
   async getTestRun(id: string) {
+    if (!isUuid(id)) return null;
     const { data, error } = await this.db.from("test_runs").select("*").eq("id", id).maybeSingle();
     if (error) fail(error, "Get test run");
     return data ? toTestRun(data) : null;
@@ -574,19 +619,25 @@ export class SupabaseRepository implements Repository {
   // Results ----------------------------------------------------------------
 
   async listResults(filter: { testRunId?: string; testCaseId?: string; testRunIds?: string[] }) {
-    let query = this.db.from("test_results").select("*");
-    if (filter.testRunId) query = query.eq("test_run_id", filter.testRunId);
-    if (filter.testCaseId) query = query.eq("test_case_id", filter.testCaseId);
-    if (filter.testRunIds) {
-      if (filter.testRunIds.length === 0) return [];
-      query = query.in("test_run_id", filter.testRunIds);
+    if (filter.testRunId && !isUuid(filter.testRunId)) return [];
+    if (filter.testCaseId && !isUuid(filter.testCaseId)) return [];
+    const build = (runIds?: string[]) => {
+      let query = this.db.from("test_results").select("*");
+      if (filter.testRunId) query = query.eq("test_run_id", filter.testRunId);
+      if (filter.testCaseId) query = query.eq("test_case_id", filter.testCaseId);
+      if (runIds) query = query.in("test_run_id", runIds);
+      return query;
+    };
+    if (!filter.testRunIds) return (await this.fetchAll(() => build(), "List results")).map(toResult);
+    const rows: Row[] = [];
+    for (const part of chunk(Array.from(new Set(filter.testRunIds.filter(isUuid))))) {
+      rows.push(...(await this.fetchAll(() => build(part), "List results")));
     }
-    const { data, error } = await query.limit(10000);
-    if (error) fail(error, "List results");
-    return data.map(toResult);
+    return rows.map(toResult);
   }
 
   async getResult(testRunId: string, testCaseId: string) {
+    if (!isUuid(testRunId) || !isUuid(testCaseId)) return null;
     const { data, error } = await this.db
       .from("test_results")
       .select("*")
@@ -621,25 +672,33 @@ export class SupabaseRepository implements Repository {
   // Automation tests -------------------------------------------------------
 
   async listAutomationTests(filter: { projectId?: string; status?: AutomationTest["status"]; testCaseIds?: string[] } = {}) {
-    let query = this.db.from("automation_tests").select("*");
-    if (filter.projectId) query = query.eq("project_id", filter.projectId);
-    if (filter.status) query = query.eq("status", filter.status);
+    if (filter.projectId && !isUuid(filter.projectId)) return [];
+    const build = () => {
+      let query = this.db.from("automation_tests").select("*");
+      if (filter.projectId) query = query.eq("project_id", filter.projectId);
+      if (filter.status) query = query.eq("status", filter.status);
+      return query;
+    };
+    const rows: Row[] = [];
     if (filter.testCaseIds) {
-      if (filter.testCaseIds.length === 0) return [];
-      query = query.in("test_case_id", filter.testCaseIds);
+      for (const part of chunk(Array.from(new Set(filter.testCaseIds.filter(isUuid))))) {
+        rows.push(...(await this.fetchAll(() => build().in("test_case_id", part), "List automation tests")));
+      }
+    } else {
+      rows.push(...(await this.fetchAll(build, "List automation tests")));
     }
-    const { data, error } = await query.order("updated_at", { ascending: false });
-    if (error) fail(error, "List automation tests");
-    return data.map(toAutomationTest);
+    return rows.map(toAutomationTest).sort((x, y) => y.updatedAt.localeCompare(x.updatedAt));
   }
 
   async getAutomationTest(id: string) {
+    if (!isUuid(id)) return null;
     const { data, error } = await this.db.from("automation_tests").select("*").eq("id", id).maybeSingle();
     if (error) fail(error, "Get automation test");
     return data ? toAutomationTest(data) : null;
   }
 
   async getAutomationTestByCase(testCaseId: string) {
+    if (!isUuid(testCaseId)) return null;
     const { data, error } = await this.db
       .from("automation_tests")
       .select("*")
@@ -710,6 +769,7 @@ export class SupabaseRepository implements Repository {
   }
 
   async getAutomationRun(id: string) {
+    if (!isUuid(id)) return null;
     const { data, error } = await this.db.from("automation_runs").select("*").eq("id", id).maybeSingle();
     if (error) fail(error, "Get automation run");
     return data ? toAutomationRun(data) : null;
@@ -780,6 +840,7 @@ export class SupabaseRepository implements Repository {
   }
 
   async getAutomationResult(id: string) {
+    if (!isUuid(id)) return null;
     const { data, error } = await this.db.from("automation_results").select("*").eq("id", id).maybeSingle();
     if (error) fail(error, "Get automation result");
     return data ? toAutomationResult(data) : null;

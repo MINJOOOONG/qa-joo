@@ -285,9 +285,17 @@ always shown as `AI GENERATED` / `AI SUGGESTION` and never changes the suite or 
   log. They are uploaded to QA JOO (local disk, or a private Supabase Storage bucket *(untested)*)
   and served via `/api/artifacts/...` to signed-in users only, with a sandboxing CSP.
 - The static lint (`lib/automation/code-lint.ts`) blocks approval of specs that import anything
-  besides `@playwright/test`, use `require`, dynamic `import()`, `process.env`, `fs`,
-  `child_process`, `eval` or `test.only`, and warns about `waitForTimeout`, TODOs and missing
-  assertions.
+  besides `@playwright/test`, use dynamic `import()`, `fs`, `child_process`, `eval` or `test.only`,
+  or reference `process`, `globalThis`, `global`, `require`, `module`, `Function`, `constructor` or
+  `__proto__` (comments and string contents are ignored, but those names as string keys are
+  blocked too). It warns about `waitForTimeout`, TODOs and missing assertions.
+- The lint is a review aid, **not a sandbox**: approved specs run as ordinary Node code on the
+  runner. The runner limits the damage by starting Playwright with a minimal environment (no
+  `RUNNER_CALLBACK_SECRET` or other credentials) and the local dispatcher passes the runner only
+  the variables it needs. Run automation on a disposable runner (e.g. GitHub Actions) and approve
+  only specs you have read.
+- Each case maps to one spec file; several tests in one file are aggregated (any failure fails the
+  case). Cases without a spec, a missing JSON report or Playwright errors are reported as failures.
 
 Run the runner yourself:
 
@@ -424,7 +432,8 @@ What is covered (139 Vitest tests, 10 Playwright E2E tests):
   an explicit `ALLOW_PRIVATE_NETWORK_TARGETS=true`, which the Settings page flags.
 - **Runner callbacks**: HMAC-SHA256 over timestamp, method, path and body hash; 5-minute window;
   constant-time comparison; finished runs reject further callbacks.
-- **AI-generated code** never runs before human approval, and approval is blocked by the lint.
+- **AI-generated code** never runs before human approval, and approval is blocked by the lint
+  (a static check, not an isolation boundary; see above).
 - **Secrets** come from environment variables only, are never shown in the UI, never sent to AI
   providers, and are redacted from analyzed repository content.
 - **Evidence links** accept only http(s) or QA JOO artifact URLs (no `javascript:` URLs);
