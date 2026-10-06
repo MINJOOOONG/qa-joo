@@ -95,7 +95,7 @@ export function CaseForm({
         </Field>
       </div>
       <Field label="Preconditions" htmlFor="preconditions" error={errors.preconditions}>
-        <Textarea id="preconditions" name="preconditions" rows={2} defaultValue={defaults?.preconditions} placeholder="User is on the Campaign Analysis page." />
+        <Textarea id="preconditions" name="preconditions" rows={2} defaultValue={defaults?.preconditions} placeholder="사용자가 캠페인 분석 페이지에 있다." />
       </Field>
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-zinc-700">

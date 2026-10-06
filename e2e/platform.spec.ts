@@ -21,7 +21,7 @@ test("navigation: every primary page renders", async ({ page }) => {
 test("global search finds projects and cases", async ({ page }) => {
   await page.goto("/dashboard");
   await page.getByLabel("Global search").fill("localhost");
-  await page.getByRole("option", { name: /Reject localhost/ }).first().click();
+  await page.getByRole("option", { name: /localhost URL 입력 시 거부/ }).first().click();
   await expect(page).toHaveURL(/\/cases\//);
 });
 

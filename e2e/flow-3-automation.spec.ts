@@ -29,14 +29,14 @@ test("Flow 3: AI Playwright draft → approve → run → results with screensho
   const key = uniqueKey("FC");
   await createProject(page, { name: "Automation Checker", key, analyzeNow: false });
 
-  await addCase(page, key, "Reject malformed campaign URL", ['Enter "not-a-valid-url" in "Campaign URL"', 'Click "Analyze"'], "An inline validation error is shown.");
+  await addCase(page, key, "잘못된 형식의 캠페인 URL 입력 시 거부", ['"Campaign URL"에 "not-a-valid-url"을 입력한다.', '"Analyze" 버튼을 클릭한다.'], "입력란에 검증 오류가 표시된다.");
   await automate(page);
   await addCase(
     page,
     key,
-    "Show requirements for a localhost URL",
-    ['Enter "http://localhost/brief" in "Campaign URL"', 'Click "Analyze"'],
-    "A list titled 'Campaign requirements' is shown.",
+    "localhost URL 입력 시 요구사항 표시",
+    ['"Campaign URL"에 "http://localhost/brief"을 입력한다.', '"Analyze" 버튼을 클릭한다.'],
+    "'Campaign requirements' 목록이 표시된다.",
   );
   await automate(page);
 

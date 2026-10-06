@@ -26,7 +26,7 @@ function allFields(page: PageInfo | null): FieldInfo[] {
 }
 
 function locatorForField(name: string, page: PageInfo | null): { code: string; known: boolean } {
-  const wanted = name.toLowerCase().replace(/["'`]/g, "").replace(/\s+field$/, "").trim();
+  const wanted = name.toLowerCase().replace(/["'`]/g, "").replace(/\s+(?:field|필드|입력란)$/, "").trim();
   const field = allFields(page).find((candidate) =>
     [candidate.label, candidate.placeholder, candidate.name].some(
       (value) => value && (value.toLowerCase().includes(wanted) || wanted.includes(value.toLowerCase())),
@@ -39,11 +39,11 @@ function locatorForField(name: string, page: PageInfo | null): { code: string; k
 }
 
 function locatorForButton(name: string, page: PageInfo | null): { code: string; known: boolean } {
-  const wanted = name.toLowerCase().replace(/["'`]/g, "").replace(/\s+button$/, "").trim();
+  const wanted = name.toLowerCase().replace(/["'`]/g, "").replace(/\s+(?:button|버튼)$/, "").trim();
   const buttons = page ? [...page.buttons, ...page.forms.flatMap((form) => form.submitLabels)] : [];
   const exact = buttons.find((label) => label.toLowerCase() === wanted) ?? buttons.find((label) => label.toLowerCase().includes(wanted));
   if (exact) return { code: `page.getByRole("button", { name: ${regexLiteral(exact)} })`, known: true };
-  if (/^(generate|submit|primary|the)$/.test(wanted) && buttons[0]) {
+  if (/^(generate|submit|primary|the|제출)$/.test(wanted) && buttons[0]) {
     return { code: `page.getByRole("button", { name: ${regexLiteral(buttons[0])} })`, known: true };
   }
   return { code: `page.getByRole("button", { name: ${regexLiteral(wanted)} })`, known: false };
@@ -55,8 +55,11 @@ export function stepToCode(step: string, page: PageInfo | null, assumptions: str
   const quoted = /["'`]([^"'`]+)["'`]/g;
   const values = Array.from(text.matchAll(quoted)).map((m) => m[1]);
 
-  const navigate = /^(?:open|go to|navigate to|visit)\s+(\/\S*)/i.exec(text);
+  const navigate = /^(?:open|go to|navigate to|visit)\s+(\/\S*)/i.exec(text) ?? /^(\/\S*)\s*(?:페이지)?(?:를|을|로|에)?\s*(?:연다|열기|접속한다|이동한다)/.exec(text);
   if (navigate) return [`await page.goto(${js(navigate[1])});`];
+
+  const korean = koreanStepToCode(text, values, page, assumptions);
+  if (korean) return korean;
 
   const fill = /^(?:enter|type|fill(?:\s+in)?|input|paste)\b/i.test(text);
   if (fill && values.length >= 1) {
@@ -85,14 +88,51 @@ export function stepToCode(step: string, page: PageInfo | null, assumptions: str
   }
 
   if (/^(wait|observe|inspect|review|check)\b/i.test(text)) return [`// ${oneLine(text)}`];
-  assumptions.push(`Automate manually: "${text}".`);
+  assumptions.push(/[가-힣]/.test(text) ? `수동으로 자동화하세요: "${text}"` : `Automate manually: "${text}".`);
   return [`// TODO: ${oneLine(text)}`];
+}
+
+/**
+ * Korean steps written in QA JOO's phrasing:
+ *   "필드"에 "값"을 입력한다 · "필드" 필드를 비워 둔다 · "버튼" 버튼을 (빠르게 두 번) 클릭한다 · …을 기다린다/확인한다
+ */
+function koreanStepToCode(text: string, values: string[], page: PageInfo | null, assumptions: string[]): string[] | null {
+  if (!/[가-힣]/.test(text)) return null;
+
+  const empty = /^["'`]([^"'`]+)["'`]\s*(?:필드|입력란)?(?:를|을)?\s*비워/.exec(text);
+  if (empty) {
+    const locator = locatorForField(empty[1], page);
+    if (!locator.known) assumptions.push(`"${empty[1]}" 필드 로케이터를 확인하세요.`);
+    return [`await ${locator.code}.fill("");`];
+  }
+
+  if (/입력|붙여넣/.test(text)) {
+    const target = /^["'`]([^"'`]+)["'`]\s*(?:필드|입력란)?\s*에/.exec(text)?.[1];
+    const value = target ? values[1] : undefined;
+    if (!target || value === undefined) {
+      assumptions.push(`입력값을 정하세요: "${text}"`);
+      return [`// TODO: ${oneLine(text)}`];
+    }
+    const locator = locatorForField(target, page);
+    if (!locator.known) assumptions.push(`"${target}" 필드 로케이터를 확인하세요.`);
+    return [`await ${locator.code}.fill(${js(value)});`];
+  }
+
+  const click = /^["'`]([^"'`]+)["'`]\s*(?:버튼|링크|메뉴)?(?:을|를)?\s*(빠르게\s*)?(두\s*번\s*)?(?:클릭|누른다|탭)/.exec(text);
+  if (click) {
+    const locator = locatorForButton(click[1], page);
+    if (!locator.known) assumptions.push(`"${click[1]}" 버튼 로케이터를 확인하세요.`);
+    return [`await ${locator.code}.${click[3] ? "dblclick" : "click"}();`];
+  }
+
+  if (/(기다린다|확인한다|살펴본다|관찰한다)$/.test(text)) return [`// ${oneLine(text)}`];
+  return null;
 }
 
 /** "Enter X in Y and click Z" → ["Enter X in Y", "click Z"] so each action maps to one line. */
 export function splitCompoundStep(step: string): string[] {
   return step
-    .split(/\s+and\s+(?=(?:then\s+)?(?:click|press|tap|submit)\b)|;\s*then\s+|,\s*then\s+/i)
+    .split(/\s+and\s+(?=(?:then\s+)?(?:click|press|tap|submit)\b)|;\s*then\s+|,\s*then\s+|(?<=하)고\s+(?=["'`][^"'`]+["'`]\s*(?:버튼|링크|메뉴)?(?:을|를)?\s*(?:빠르게\s*)?(?:두\s*번\s*)?클릭)/i)
     .map((part) => part.trim())
     .filter(Boolean);
 }
@@ -107,7 +147,7 @@ export function assertionFor(expected: string): string[] {
   const quoted = QUOTED_TEXT.exec(expected);
   const text = quoted?.[1] ?? quoted?.[2] ?? quoted?.[3];
   if (text) return [`await expect(page.getByText(${js(text)})).toBeVisible();`];
-  if (/\b(error|reject|invalid|blocked|not allowed|denied|fail)/i.test(expected)) {
+  if (/\b(error|reject|invalid|blocked|not allowed|denied|fail)|오류|에러|거부|차단|실패|유효하지|필수/i.test(expected)) {
     return [
       `// Expected: ${oneLine(expected)}`,
       `await expect(page.getByRole("alert").first()).toBeVisible();`,

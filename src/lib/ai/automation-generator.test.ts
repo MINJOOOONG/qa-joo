@@ -51,3 +51,34 @@ describe("Playwright draft generation", () => {
     expect(draft.code.startsWith('import { test, expect } from "@playwright/test";')).toBe(true);
   });
 });
+
+describe("Korean test steps", () => {
+  const korean = {
+    ...testCase,
+    title: "Campaign URL에 잘못된 형식의 URL 입력 시 거부",
+    steps: [
+      "/sandbox/index.html 페이지를 연다.",
+      '"Campaign URL" 필드를 비워 둔다.',
+      '"Campaign URL"에 "not-a-valid-url"을 입력하고 "Analyze" 버튼을 클릭한다.',
+      '"Analyze" 버튼을 빠르게 두 번 클릭한다.',
+      "응답을 기다린다.",
+    ],
+    expectedResult: "입력란에 검증 오류가 표시되고 요청이 전송되지 않는다.",
+  };
+
+  it("maps Korean phrasing to Playwright actions", () => {
+    const draft = heuristicAutomationDraft({ testCase: korean, entryPath: "/sandbox/index.html", page });
+    expect(draft.code).toContain('await page.getByLabel(/Campaign URL/i).fill("");');
+    expect(draft.code).toContain('await page.getByLabel(/Campaign URL/i).fill("not-a-valid-url");');
+    expect(draft.code).toContain('await page.getByRole("button", { name: /Analyze/i }).click();');
+    expect(draft.code).toContain('await page.getByRole("button", { name: /Analyze/i }).dblclick();');
+    expect(draft.code).toContain("// 응답을 기다린다");
+    expect(draft.code).toContain('await expect(page.getByRole("alert").first()).toBeVisible();');
+    expect(draft.code).not.toContain("TODO");
+    expect(lintAutomationCode(draft.code).errors).toEqual([]);
+  });
+
+  it("splits Korean compound steps", () => {
+    expect(splitCompoundStep('"A"에 "x"을 입력하고 "Go" 버튼을 클릭한다.')).toEqual(['"A"에 "x"을 입력하', '"Go" 버튼을 클릭한다.']);
+  });
+});

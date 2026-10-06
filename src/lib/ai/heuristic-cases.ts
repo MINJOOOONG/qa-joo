@@ -6,18 +6,31 @@ import type { GeneratedCase } from "./schemas";
  * Deterministic test-case generator used when no AI provider is configured, and to top up AI
  * output that lacks unhappy-path coverage. Every case is derived from a concrete signal found by
  * the analyzer (a field, a button, a route, a repository hint), and says so in its rationale.
+ *
+ * Cases are written in Korean. Steps follow fixed phrasings ("\"필드\"에 \"값\"을 입력한다.",
+ * "\"버튼\" 버튼을 클릭한다.", "/경로 페이지를 연다.") that the Playwright draft generator understands.
  */
+
+/** Sub-section names, in display order. */
+export const SUBAREAS = {
+  smoke: "스모크",
+  happy: "정상 흐름",
+  negative: "부정 케이스",
+  boundary: "경계값",
+  security: "보안",
+  error: "오류 처리",
+} as const;
 
 function areaForPage(page: PageInfo): string {
   if (page.path === "/" || page.path === "") {
-    return page.headings[0]?.slice(0, 60) ?? page.title?.split(/[|·–-]/)[0].trim().slice(0, 60) ?? "Home";
+    return page.headings[0]?.slice(0, 60) ?? page.title?.split(/[|·–-]/)[0].trim().slice(0, 60) ?? "홈";
   }
-  const segment = page.path.split("/").filter(Boolean)[0] ?? "Home";
+  const segment = page.path.split("/").filter(Boolean)[0] ?? "홈";
   return segment.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 60);
 }
 
 function fieldName(field: FieldInfo): string {
-  return field.label ?? field.placeholder ?? field.name ?? `${field.type} field`;
+  return field.label ?? field.placeholder ?? field.name ?? `${field.type} 입력`;
 }
 
 function constraint(field: FieldInfo, key: string): string | null {
@@ -29,31 +42,34 @@ function isUrlField(field: FieldInfo): boolean {
   return field.type === "url" || /url|link|website|address/i.test(`${field.name} ${field.label} ${field.placeholder}`);
 }
 
-function primaryAction(page: PageInfo, fallback = "submit"): string {
+function primaryAction(page: PageInfo, fallback = "제출"): string {
   const submit =
     page.forms.flatMap((form) => form.submitLabels)[0] ??
-    page.buttons.find((label) => /submit|save|send|create|analy[sz]e|generate|search|continue|sign/i.test(label)) ??
+    page.buttons.find((label) => /submit|save|send|create|analy[sz]e|generate|search|continue|sign|저장|생성|분석|검색|제출|확인/i.test(label)) ??
     page.buttons[0];
   return submit ?? fallback;
 }
 
+const pageName = (page: PageInfo) => page.title ?? page.path;
+const click = (action: string) => `"${action}" 버튼을 클릭한다.`;
+
 function casesForField(page: PageInfo, field: FieldInfo, action: string, area: string): GeneratedCase[] {
   const name = fieldName(field);
   const cases: GeneratedCase[] = [];
-  const pre = `User is on ${page.title ?? page.path}.`;
+  const pre = `사용자가 ${pageName(page)} 페이지에 있다.`;
   const base = { area, preconditions: pre, tags: [] as string[] };
 
   if (field.required || isUrlField(field)) {
     cases.push({
       ...base,
-      subarea: "Negative Cases",
-      title: `Reject empty ${name}`,
+      subarea: SUBAREAS.negative,
+      title: `${name} 미입력 시 제출 차단`,
       type: "negative",
       priority: "high",
-      steps: [`Leave "${name}" empty.`, `Click "${action}".`],
-      expectedResult: `Submission is blocked and a validation message explains that "${name}" is required.`,
+      steps: [`"${name}" 필드를 비워 둔다.`, click(action)],
+      expectedResult: `제출이 차단되고 "${name}"이(가) 필수라는 검증 메시지가 표시된다.`,
       tags: ["validation"],
-      rationale: `"${name}" is ${field.required ? "marked required" : "a primary input"} on ${page.path}.`,
+      rationale: `${page.path}의 "${name}"은(는) ${field.required ? "필수 입력" : "주요 입력"} 항목이다.`,
     });
   }
 
@@ -61,135 +77,135 @@ function casesForField(page: PageInfo, field: FieldInfo, action: string, area: s
     cases.push(
       {
         ...base,
-        subarea: "Negative Cases",
-        title: `Reject malformed URL in ${name}`,
+        subarea: SUBAREAS.negative,
+        title: `${name}에 잘못된 형식의 URL 입력 시 거부`,
         type: "negative",
         priority: "high",
-        steps: [`Enter "not-a-valid-url" in "${name}".`, `Click "${action}".`],
-        expectedResult: "An inline validation error is shown and no request is sent.",
+        steps: [`"${name}"에 "not-a-valid-url"을 입력한다.`, click(action)],
+        expectedResult: "입력란에 검증 오류가 표시되고 요청이 전송되지 않는다.",
         tags: ["validation", "url"],
-        rationale: `"${name}" accepts URLs (${field.constraints.join(", ") || field.type}).`,
+        rationale: `"${name}"은(는) URL을 입력받는다 (${field.constraints.join(", ") || field.type}).`,
       },
       {
         ...base,
-        subarea: "Security",
-        title: `Reject localhost and private network URLs in ${name}`,
+        subarea: SUBAREAS.security,
+        title: `${name}에 localhost·사설망 URL 입력 시 거부`,
         type: "security",
         priority: "high",
         steps: [
-          `Enter "http://localhost/admin" in "${name}" and click "${action}".`,
-          `Repeat with "http://192.168.0.1/" and "http://169.254.169.254/latest/meta-data/".`,
+          `"${name}"에 "http://localhost/admin"을 입력하고 "${action}" 버튼을 클릭한다.`,
+          `"http://192.168.0.1/"과 "http://169.254.169.254/latest/meta-data/"로 반복한다.`,
         ],
-        expectedResult: "Each request is rejected; the server never fetches internal addresses (SSRF protection).",
+        expectedResult: "모든 요청이 거부되고 서버가 내부 주소로 요청을 보내지 않는다 (SSRF 방어).",
         tags: ["ssrf", "security"],
-        rationale: `The app accepts user-supplied URLs in "${name}", which is a classic SSRF entry point.`,
+        rationale: `"${name}"에 사용자가 입력한 URL을 서버가 요청하므로 대표적인 SSRF 진입점이다.`,
       },
       {
         ...base,
-        subarea: "Boundary",
-        title: `Handle a very long URL in ${name}`,
+        subarea: SUBAREAS.boundary,
+        title: `${name}에 매우 긴 URL 입력 처리`,
         type: "boundary",
         priority: "medium",
-        steps: [`Enter a valid URL that is 2,048 characters long in "${name}".`, `Click "${action}".`, "Repeat with 2,049 characters."],
-        expectedResult: "The supported maximum is accepted; anything longer is rejected with a clear message.",
+        steps: [`"${name}"에 길이 2,048자인 유효한 URL을 입력한다.`, click(action), "2,049자로 반복한다."],
+        expectedResult: "지원하는 최대 길이까지는 허용되고, 그보다 길면 명확한 메시지와 함께 거부된다.",
         tags: ["boundary", "url"],
-        rationale: "URL inputs need an explicit maximum length.",
+        rationale: "URL 입력에는 명시적인 최대 길이가 필요하다.",
       },
     );
   } else if (field.type === "email") {
     cases.push({
       ...base,
-      subarea: "Negative Cases",
-      title: `Reject invalid email in ${name}`,
+      subarea: SUBAREAS.negative,
+      title: `${name}에 잘못된 이메일 입력 시 거부`,
       type: "negative",
       priority: "high",
-      steps: [`Enter "user@" in "${name}".`, `Click "${action}".`],
-      expectedResult: "A validation error is shown and the form is not submitted.",
+      steps: [`"${name}"에 "user@"를 입력한다.`, click(action)],
+      expectedResult: "검증 오류가 표시되고 폼이 제출되지 않는다.",
       tags: ["validation", "email"],
-      rationale: `"${name}" is an email input.`,
+      rationale: `"${name}"은(는) 이메일 입력란이다.`,
     });
   } else if (field.type === "number" || constraint(field, "min") || constraint(field, "max")) {
     const min = constraint(field, "min");
     const max = constraint(field, "max");
     cases.push({
       ...base,
-      subarea: "Boundary",
-      title: `Enforce numeric limits for ${name}`,
+      subarea: SUBAREAS.boundary,
+      title: `${name} 숫자 범위 검증`,
       type: "boundary",
       priority: "medium",
       steps: [
-        min ? `Enter ${min} (minimum) and submit; then enter ${Number(min) - 1}.` : `Enter 0 and a negative number.`,
-        max ? `Enter ${max} (maximum) and submit; then enter ${Number(max) + 1}.` : "Enter a very large number (e.g. 1e12).",
-        "Enter a non-numeric value such as 'abc'.",
+        min ? `${min}(최솟값)을 입력해 제출한 뒤 ${Number(min) - 1}을 입력한다.` : "0과 음수를 입력한다.",
+        max ? `${max}(최댓값)을 입력해 제출한 뒤 ${Number(max) + 1}을 입력한다.` : "매우 큰 수(예: 1e12)를 입력한다.",
+        "'abc'처럼 숫자가 아닌 값을 입력한다.",
       ],
-      expectedResult: "In-range values are accepted; out-of-range and non-numeric values are rejected with a message.",
+      expectedResult: "범위 안의 값은 허용되고, 범위를 벗어나거나 숫자가 아닌 값은 메시지와 함께 거부된다.",
       tags: ["boundary", "number"],
-      rationale: `"${name}" is numeric${min || max ? ` (min=${min ?? "–"}, max=${max ?? "–"})` : ""}.`,
+      rationale: `"${name}"은(는) 숫자 입력이다${min || max ? ` (min=${min ?? "–"}, max=${max ?? "–"})` : ""}.`,
     });
   } else if (field.type === "file") {
     cases.push(
       {
         ...base,
-        subarea: "Boundary",
-        title: `Enforce upload limits for ${name}`,
+        subarea: SUBAREAS.boundary,
+        title: `${name} 업로드 제한 검증`,
         type: "boundary",
         priority: "medium",
-        steps: ["Upload a file at the maximum allowed size/count.", "Upload one file over the limit."],
-        expectedResult: "The limit is accepted; exceeding it shows a clear error and nothing is uploaded.",
+        steps: ["허용된 최대 크기/개수의 파일을 업로드한다.", "제한을 하나 초과하는 파일을 업로드한다."],
+        expectedResult: "제한까지는 허용되고, 초과하면 명확한 오류가 표시되며 업로드되지 않는다.",
         tags: ["upload", "boundary"],
-        rationale: `"${name}" is a file input${field.constraints.length ? ` (${field.constraints.join(", ")})` : ""}.`,
+        rationale: `"${name}"은(는) 파일 입력이다${field.constraints.length ? ` (${field.constraints.join(", ")})` : ""}.`,
       },
       {
         ...base,
-        subarea: "Negative Cases",
-        title: `Reject unsupported file types in ${name}`,
+        subarea: SUBAREAS.negative,
+        title: `${name}에 지원하지 않는 파일 형식 업로드 시 거부`,
         type: "negative",
         priority: "medium",
-        steps: ["Upload a .exe or .txt file renamed to .jpg.", `Click "${action}".`],
-        expectedResult: "The file is rejected with a message listing supported types.",
+        steps: [".exe 파일이나 확장자만 .jpg로 바꾼 .txt 파일을 업로드한다.", click(action)],
+        expectedResult: "지원 형식 목록과 함께 파일이 거부된다.",
         tags: ["upload", "validation"],
-        rationale: `"${name}" accepts uploads${constraint(field, "accept") ? ` (accept=${constraint(field, "accept")})` : ""}.`,
+        rationale: `"${name}"은(는) 업로드를 받는다${constraint(field, "accept") ? ` (accept=${constraint(field, "accept")})` : ""}.`,
       },
     );
   } else if (field.tag === "textarea" || field.type === "text" || field.type === "search") {
     const maxLength = constraint(field, "maxlength");
     cases.push({
       ...base,
-      subarea: "Boundary",
-      title: maxLength ? `Enforce ${maxLength}-character limit in ${name}` : `Handle very long input in ${name}`,
+      subarea: SUBAREAS.boundary,
+      title: maxLength ? `${name} ${maxLength}자 제한 검증` : `${name}에 매우 긴 입력 처리`,
       type: "boundary",
       priority: "low",
       steps: maxLength
-        ? [`Enter exactly ${maxLength} characters in "${name}".`, `Try to enter ${Number(maxLength) + 1} characters.`]
-        : [`Paste 10,000 characters into "${name}".`, `Click "${action}".`],
-      expectedResult: "Input at the limit is accepted; longer input is truncated or rejected without breaking the layout.",
+        ? [`"${name}"에 정확히 ${maxLength}자를 입력한다.`, `${Number(maxLength) + 1}자 입력을 시도한다.`]
+        : [`"${name}"에 10,000자를 붙여넣는다.`, click(action)],
+      expectedResult: "제한 길이까지는 허용되고, 더 긴 입력은 레이아웃을 깨뜨리지 않고 잘리거나 거부된다.",
       tags: ["boundary"],
-      rationale: `"${name}" is free text${maxLength ? ` with maxlength=${maxLength}` : " without a visible length limit"}.`,
+      rationale: `"${name}"은(는) 자유 텍스트 입력이다${maxLength ? ` (maxlength=${maxLength})` : " (길이 제한 표시 없음)"}.`,
     });
     if (field.tag === "textarea") {
       cases.push({
         ...base,
-        subarea: "Security",
-        title: `Render HTML in ${name} as plain text`,
+        subarea: SUBAREAS.security,
+        title: `${name}에 입력한 HTML을 일반 텍스트로 표시`,
         type: "security",
         priority: "medium",
-        steps: [`Enter <img src=x onerror=alert(1)> in "${name}".`, `Click "${action}" and view the output.`],
-        expectedResult: "The markup is displayed as text; no script runs (no XSS).",
+        steps: [`"${name}"에 "<img src=x onerror=alert(1)>"을 입력한다.`, click(action), "출력 결과를 확인한다."],
+        expectedResult: "마크업이 텍스트로 표시되고 스크립트가 실행되지 않는다 (XSS 없음).",
         tags: ["xss", "security"],
-        rationale: `"${name}" accepts free text that is likely echoed back to the user.`,
+        rationale: `"${name}"에 입력한 텍스트가 화면에 다시 표시될 가능성이 높다.`,
       });
     }
   } else if (field.type === "password") {
     cases.push({
       ...base,
-      subarea: "Security",
-      title: `Keep ${name} masked and out of URLs`,
+      subarea: SUBAREAS.security,
+      title: `${name} 마스킹 및 URL 노출 방지`,
       type: "security",
       priority: "high",
-      steps: [`Type a password into "${name}".`, `Submit and inspect the resulting URL and network request.`],
-      expectedResult: "The value is masked on screen and never appears in the URL or query string.",
+      steps: [`"${name}"에 비밀번호를 입력한다.`, "제출한 뒤 결과 URL과 네트워크 요청을 확인한다."],
+      expectedResult: "값이 화면에서 가려지고 URL이나 쿼리 문자열에 절대 나타나지 않는다.",
       tags: ["security", "auth"],
-      rationale: `"${name}" is a password field.`,
+      rationale: `"${name}"은(는) 비밀번호 입력란이다.`,
     });
   }
   return cases;
@@ -208,180 +224,179 @@ export function heuristicTestCases(projectName: string, analysis: ProjectAnalysi
     );
 
     cases.push({
-      title: index === 0 ? `Load ${page.title ?? projectName} home page` : `Load ${page.path} page`,
+      title: index === 0 ? `${page.title ?? projectName} 홈 화면 로딩` : `${page.path} 페이지 로딩`,
       area,
-      subarea: "Smoke",
+      subarea: SUBAREAS.smoke,
       type: "smoke",
       priority: index === 0 ? "critical" : "medium",
-      preconditions: "The application is deployed and reachable.",
-      steps: [`Open ${page.path}.`, "Wait for the page to finish loading."],
-      expectedResult: `The page renders without errors${page.headings[0] ? ` and shows "${page.headings[0]}"` : ""}.`,
+      preconditions: "애플리케이션이 배포되어 접속 가능하다.",
+      steps: [`${page.path} 페이지를 연다.`, "페이지 로딩이 끝날 때까지 기다린다."],
+      expectedResult: `오류 없이 페이지가 표시된다${page.headings[0] ? ` ("${page.headings[0]}" 제목 표시)` : ""}.`,
       tags: ["smoke"],
-      rationale: `Page ${page.path} was reachable during analysis.`,
+      rationale: `분석 중 ${page.path} 페이지에 접속할 수 있었다.`,
     });
 
     if (fields.length) {
       const named = fields.slice(0, 3).map(fieldName);
       cases.push({
-        title: `Complete the main flow on ${page.path === "/" ? "the home page" : page.path} with valid input`,
+        title: `${page.path === "/" ? "홈 화면" : page.path}에서 유효한 입력으로 주요 흐름 완료`,
         area,
-        subarea: "Happy Path",
+        subarea: SUBAREAS.happy,
         type: "functional",
         priority: "high",
-        preconditions: `User is on ${page.title ?? page.path}.`,
-        steps: [...named.map((name) => `Fill "${name}" with valid data.`), `Click "${action}".`, "Wait for the response."],
-        expectedResult: "The request succeeds and the result is shown without errors.",
+        preconditions: `사용자가 ${pageName(page)} 페이지에 있다.`,
+        steps: [...named.map((name) => `"${name}"에 유효한 값을 입력한다.`), click(action), "응답을 기다린다."],
+        expectedResult: "요청이 성공하고 결과가 오류 없이 표시된다.",
         tags: ["happy-path"],
-        rationale: `Found ${fields.length} input(s) and the "${action}" action on ${page.path}.`,
+        rationale: `${page.path}에서 입력 ${fields.length}개와 "${action}" 동작을 발견했다.`,
       });
       cases.push({
-        title: `Prevent duplicate submission of "${action}"`,
+        title: `"${action}" 중복 제출 방지`,
         area,
-        subarea: "Negative Cases",
+        subarea: SUBAREAS.negative,
         type: "negative",
         priority: "medium",
-        preconditions: `User is on ${page.title ?? page.path} with valid input entered.`,
-        steps: [`Double-click "${action}" quickly.`],
-        expectedResult: "Only one request is sent; the control is disabled while the request is in flight.",
+        preconditions: `사용자가 ${pageName(page)} 페이지에서 유효한 값을 입력한 상태다.`,
+        steps: [`"${action}" 버튼을 빠르게 두 번 클릭한다.`],
+        expectedResult: "요청은 한 번만 전송되고, 요청 중에는 버튼이 비활성화된다.",
         tags: ["idempotency"],
-        rationale: `"${action}" triggers a server request.`,
+        rationale: `"${action}"은(는) 서버 요청을 보낸다.`,
       });
       cases.push({
-        title: `Show a recoverable error when "${action}" fails`,
+        title: `"${action}" 실패 시 복구 가능한 오류 표시`,
         area,
-        subarea: "Error Handling",
+        subarea: SUBAREAS.error,
         type: "error",
         priority: "high",
-        preconditions: "The backend returns HTTP 500 or the network is offline.",
-        steps: ["Simulate a server error (or go offline in DevTools).", `Click "${action}".`, "Restore the network and retry."],
-        expectedResult: "A readable error is shown, entered data is kept, and retrying succeeds.",
+        preconditions: "백엔드가 HTTP 500을 반환하거나 네트워크가 끊긴 상태다.",
+        steps: ["서버 오류를 발생시킨다 (또는 DevTools에서 오프라인으로 전환한다).", click(action), "네트워크를 복구하고 다시 시도한다."],
+        expectedResult: "읽기 쉬운 오류가 표시되고, 입력한 데이터가 유지되며, 재시도하면 성공한다.",
         tags: ["resilience"],
-        rationale: "Every user-triggered request needs a failure state.",
+        rationale: "사용자가 보내는 모든 요청에는 실패 상태가 필요하다.",
       });
     }
     for (const field of fields.slice(0, 4)) cases.push(...casesForField(page, field, action, area));
 
     if (page.navLabels.length > 1 && index === 0) {
       cases.push({
-        title: "Navigate between primary sections",
-        area: "Navigation",
+        title: "주요 메뉴 간 이동",
+        area: "내비게이션",
         subarea: "",
         type: "e2e",
         priority: "medium",
-        preconditions: "User is on the home page.",
-        steps: page.navLabels.slice(0, 5).map((label) => `Click "${label}" and verify the destination loads.`),
-        expectedResult: "Each navigation item opens the right page and the browser back button returns to the previous page.",
+        preconditions: "사용자가 홈 화면에 있다.",
+        steps: page.navLabels.slice(0, 5).map((label) => `"${label}" 버튼을 클릭한다.`),
+        expectedResult: "각 메뉴가 올바른 페이지를 열고, 브라우저 뒤로 가기로 이전 페이지에 돌아온다.",
         tags: ["navigation"],
-        rationale: `Navigation items found: ${page.navLabels.slice(0, 5).join(", ")}.`,
+        rationale: `발견한 메뉴: ${page.navLabels.slice(0, 5).join(", ")}.`,
       });
     }
   }
 
   if (repo) {
     for (const endpoint of repo.apiEndpoints.slice(0, 4)) {
-      const area = `API ${endpoint}`.slice(0, 60);
       cases.push(
         {
-          title: `${endpoint} rejects an invalid payload`,
+          title: `${endpoint} 잘못된 요청 본문 거부`,
           area: "API",
           subarea: endpoint.slice(0, 60),
           type: "api",
           priority: "high",
-          preconditions: "API is reachable.",
-          steps: [`POST to ${endpoint} with an empty JSON body.`, `POST again with wrong field types.`],
-          expectedResult: "The API responds with HTTP 400/422 and a JSON error message; nothing is persisted.",
+          preconditions: "API에 접속할 수 있다.",
+          steps: [`빈 JSON 본문으로 ${endpoint}에 POST 요청을 보낸다.`, "필드 타입이 잘못된 본문으로 다시 POST 요청을 보낸다."],
+          expectedResult: "API가 HTTP 400/422와 JSON 오류 메시지로 응답하고 아무것도 저장되지 않는다.",
           tags: ["api", "validation"],
-          rationale: `Route handler ${endpoint} exists in the repository.`,
+          rationale: `저장소에 ${endpoint} 라우트 핸들러가 있다.`,
         },
         {
-          title: `${endpoint} handles upstream failure gracefully`,
+          title: `${endpoint} 외부 의존성 장애 처리`,
           area: "API",
           subarea: endpoint.slice(0, 60),
           type: "error",
           priority: "medium",
-          preconditions: "A dependency of the endpoint is unavailable.",
-          steps: [`Call ${endpoint} while the upstream dependency times out or returns 500.`],
-          expectedResult: "The API returns a controlled error (no stack trace) within the configured timeout.",
+          preconditions: "엔드포인트가 의존하는 외부 서비스를 사용할 수 없다.",
+          steps: [`외부 의존성이 타임아웃되거나 500을 반환하는 동안 ${endpoint}를 호출한다.`],
+          expectedResult: "API가 설정된 타임아웃 안에 통제된 오류를 반환한다 (스택 트레이스 노출 없음).",
           tags: ["api", "resilience"],
-          rationale: `Derived from ${area}.`,
+          rationale: `저장소의 API ${endpoint}에서 도출했다.`,
         },
       );
     }
     if (repo.hints.includes("Rate limiting is implemented")) {
       cases.push({
-        title: "Rate limit repeated requests",
+        title: "반복 요청 속도 제한",
         area: "API",
-        subarea: "Security",
+        subarea: SUBAREAS.security,
         type: "security",
         priority: "medium",
-        preconditions: "Rate limiting is enabled.",
-        steps: ["Send requests above the documented limit within one minute.", "Inspect the last responses."],
-        expectedResult: "Requests over the limit get HTTP 429 with a retry hint; normal traffic is unaffected.",
+        preconditions: "속도 제한(rate limiting)이 활성화되어 있다.",
+        steps: ["1분 안에 허용 한도를 넘는 요청을 보낸다.", "마지막 응답들을 확인한다."],
+        expectedResult: "한도를 넘은 요청은 재시도 안내와 함께 HTTP 429를 받고, 일반 트래픽은 영향받지 않는다.",
         tags: ["rate-limit"],
-        rationale: "The repository contains rate limiting logic.",
+        rationale: "저장소에 속도 제한 로직이 있다.",
       });
     }
     if (repo.hints.includes("Requests use timeouts")) {
       cases.push({
-        title: "Handle upstream timeout",
-        area: "Reliability",
-        subarea: "Error Handling",
+        title: "외부 서비스 타임아웃 처리",
+        area: "안정성",
+        subarea: SUBAREAS.error,
         type: "error",
         priority: "medium",
-        preconditions: "An upstream dependency responds slower than the timeout.",
-        steps: ["Trigger the request against a slow upstream.", "Wait for the timeout."],
-        expectedResult: "A clear timeout message is shown and the user can retry.",
+        preconditions: "외부 의존성이 타임아웃보다 늦게 응답한다.",
+        steps: ["느린 외부 서비스로 요청을 보낸다.", "타임아웃이 날 때까지 기다린다."],
+        expectedResult: "명확한 타임아웃 메시지가 표시되고 사용자가 다시 시도할 수 있다.",
         tags: ["timeout"],
-        rationale: "The repository uses explicit request timeouts.",
+        rationale: "저장소에서 요청 타임아웃을 명시적으로 사용한다.",
       });
     }
     for (const route of repo.routes.filter((route) => route !== "/" && !route.includes("[")).slice(0, 3)) {
       cases.push({
-        title: `Load ${route}`,
-        area: "Routes",
-        subarea: "Smoke",
+        title: `${route} 페이지 로딩`,
+        area: "라우트",
+        subarea: SUBAREAS.smoke,
         type: "smoke",
         priority: "low",
-        preconditions: "The application is deployed.",
-        steps: [`Open ${route} directly.`],
-        expectedResult: "The page renders without errors; unknown sub-paths return a 404 page.",
+        preconditions: "애플리케이션이 배포되어 있다.",
+        steps: [`${route} 페이지를 연다.`],
+        expectedResult: "오류 없이 페이지가 표시되고, 존재하지 않는 하위 경로는 404 페이지를 반환한다.",
         tags: ["smoke", "routing"],
-        rationale: `Route ${route} exists in the repository.`,
+        rationale: `저장소에 ${route} 라우트가 있다.`,
       });
     }
   }
 
   cases.push(
     {
-      title: "Return a friendly 404 for unknown pages",
-      area: "General",
-      subarea: "Error Handling",
+      title: "존재하지 않는 페이지에 친절한 404 표시",
+      area: "공통",
+      subarea: SUBAREAS.error,
       type: "error",
       priority: "low",
-      preconditions: "The application is deployed.",
-      steps: ["Open /this-page-does-not-exist-qa-joo."],
-      expectedResult: "A 404 page with a way back to the app is shown; no stack trace is exposed.",
+      preconditions: "애플리케이션이 배포되어 있다.",
+      steps: ["/this-page-does-not-exist-qa-joo 페이지를 연다."],
+      expectedResult: "앱으로 돌아갈 수 있는 404 페이지가 표시되고 스택 트레이스가 노출되지 않는다.",
       tags: ["routing"],
-      rationale: "Baseline error handling check for every web application.",
+      rationale: "모든 웹 애플리케이션의 기본 오류 처리 점검이다.",
     },
     {
-      title: "Serve baseline security headers",
-      area: "General",
-      subarea: "Security",
+      title: "기본 보안 헤더 제공",
+      area: "공통",
+      subarea: SUBAREAS.security,
       type: "security",
       priority: "low",
-      preconditions: "The application is deployed over HTTPS.",
-      steps: ["Load the home page.", "Inspect response headers in DevTools."],
-      expectedResult: "HTTPS is enforced and headers such as X-Content-Type-Options and a Content-Security-Policy are present.",
+      preconditions: "애플리케이션이 HTTPS로 배포되어 있다.",
+      steps: ["홈 화면을 연다.", "DevTools에서 응답 헤더를 확인한다."],
+      expectedResult: "HTTPS가 강제되고 X-Content-Type-Options, Content-Security-Policy 같은 헤더가 있다.",
       tags: ["headers"],
-      rationale: "Baseline security check for every web application.",
+      rationale: "모든 웹 애플리케이션의 기본 보안 점검이다.",
     },
   );
 
   return balanceCases(dedupeCases(cases), maxCases);
 }
 
-const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
 export function dedupeCases(cases: GeneratedCase[], existingTitles: string[] = []): GeneratedCase[] {
   const seen = new Set(existingTitles.map(normalizeTitle));
@@ -425,14 +440,22 @@ export function balanceCases(cases: GeneratedCase[], max: number): GeneratedCase
   return orderCases(selected);
 }
 
-const SUBAREA_RANK = ["smoke", "happy path", "functional", "negative cases", "boundary", "security", "error handling"];
+const SUBAREA_RANK: string[][] = [
+  ["smoke", SUBAREAS.smoke],
+  ["happy path", SUBAREAS.happy],
+  ["functional", "기능"],
+  ["negative cases", SUBAREAS.negative],
+  ["boundary", SUBAREAS.boundary],
+  ["security", SUBAREAS.security],
+  ["error handling", SUBAREAS.error],
+];
 
 /** Groups cases by area (first-seen order), then smoke → happy path → negative → boundary → security → error. */
 export function orderCases(cases: GeneratedCase[]): GeneratedCase[] {
   const areaOrder = new Map<string, number>();
   for (const c of cases) if (!areaOrder.has(c.area)) areaOrder.set(c.area, areaOrder.size);
   const rank = (c: GeneratedCase) => {
-    const index = SUBAREA_RANK.indexOf(c.subarea.toLowerCase());
+    const index = SUBAREA_RANK.findIndex((names) => names.includes(c.subarea.toLowerCase()));
     return index === -1 ? SUBAREA_RANK.length : index;
   };
   return cases

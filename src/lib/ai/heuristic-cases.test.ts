@@ -47,6 +47,13 @@ describe("heuristic test case generation", () => {
     expect(cases.find((c) => c.type === "security" && /localhost/i.test(c.title))?.steps.join(" ")).toContain("169.254.169.254");
   });
 
+  it("writes cases in Korean and keeps distinct Korean titles", () => {
+    expect(cases.every((c) => /[가-힣]/.test(c.title) && c.steps.every((step) => /[가-힣]/.test(step)))).toBe(true);
+    expect(new Set(cases.map((c) => c.title)).size).toBe(cases.length);
+    expect(dedupeCases([cases[0], { ...cases[0], title: `${cases[0].title}!` }])).toHaveLength(1);
+    expect(dedupeCases([cases[0], cases[1]])).toHaveLength(2);
+  });
+
   it("dedupes against existing cases", () => {
     const deduped = dedupeCases(cases, [cases[0].title.toUpperCase()]);
     expect(deduped.find((c) => c.title === cases[0].title)).toBeUndefined();

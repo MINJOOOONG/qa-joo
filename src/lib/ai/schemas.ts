@@ -7,13 +7,13 @@ import { CASE_TYPES, FAILURE_CATEGORIES, PRIORITIES } from "@/lib/domain/constan
  */
 
 export const generatedCaseSchema = z.object({
-  title: z.string().describe("Imperative, specific test case title, e.g. 'Reject malformed campaign URL'"),
+  title: z.string().describe("Specific Korean test case title, e.g. '잘못된 형식의 캠페인 URL 입력 시 거부'"),
   area: z.string().describe("Top-level feature area, used as the section name"),
-  subarea: z.string().describe("Optional sub-section such as 'Negative Cases'; empty string if none"),
+  subarea: z.string().describe("Optional sub-section in Korean such as '부정 케이스'; empty string if none"),
   type: z.enum(CASE_TYPES),
   priority: z.enum(PRIORITIES),
   preconditions: z.string(),
-  steps: z.array(z.string()).describe("Concrete, observable steps a tester can follow"),
+  steps: z.array(z.string()).describe("Concrete, observable steps in Korean a tester can follow"),
   expectedResult: z.string(),
   tags: z.array(z.string()),
   rationale: z.string().describe("Which evidence from the analysis motivated this case"),
