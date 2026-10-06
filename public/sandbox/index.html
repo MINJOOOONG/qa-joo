@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sandbox Campaign Checker</title>
+    <meta name="description" content="Fixture app used by QA JOO's own end-to-end tests and automation demos." />
+    <link rel="stylesheet" href="sandbox.css" />
+  </head>
+  <body>
+    <header>
+      <strong>Sandbox Campaign Checker</strong>
+      <nav aria-label="Main">
+        <a href="index.html">Checker</a>
+        <a href="about.html">About</a>
+      </nav>
+    </header>
+    <main>
+      <h1>Check a campaign brief</h1>
+      <p class="note">This page is a test fixture shipped with QA JOO. It is not a real service.</p>
+      <form id="campaign-form" aria-label="Campaign analysis" novalidate>
+        <label for="campaign-url">Campaign URL</label>
+        <input id="campaign-url" name="campaignUrl" type="url" required placeholder="https://campaign.example.com/brief" />
+
+        <label for="keywords">Required keywords</label>
+        <textarea id="keywords" name="keywords" maxlength="300" placeholder="e.g. brunch, seongsu"></textarea>
+
+        <label for="photo-count">Photo count</label>
+        <input id="photo-count" name="photoCount" type="number" min="1" max="20" value="3" />
+
+        <button type="submit" id="analyze-button">Analyze</button>
+        <p class="form-error" role="alert" hidden></p>
+      </form>
+      <section id="result" aria-live="polite" hidden>
+        <h2>Campaign requirements</h2>
+        <ul></ul>
+      </section>
+    </main>
+    <script src="sandbox.js"></script>
+  </body>
+</html>

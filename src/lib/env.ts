@@ -60,7 +60,7 @@ export function getConfig() {
     ai: {
       provider: aiProvider,
       anthropicKey,
-      anthropicModel: read("ANTHROPIC_MODEL") ?? "claude-sonnet-5-5",
+      anthropicModel: read("ANTHROPIC_MODEL") ?? "claude-opus-5-5",
       openaiKey,
       openaiModel: read("OPENAI_MODEL") ?? "gpt-5-mini",
       timeoutMs: Number(read("AI_TIMEOUT_MS") ?? 90_000),
