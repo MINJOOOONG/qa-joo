@@ -68,7 +68,7 @@ export function Topbar({
       </nav>
       <div className="ml-auto flex items-center gap-3">
         <GlobalSearch />
-        <div className="flex items-center rounded-md border p-0.5 text-xs" role="group" aria-label={t.shell.switchLanguage}>
+        <div className="flex shrink-0 items-center rounded-md border p-0.5 text-xs" role="group" aria-label={t.shell.switchLanguage}>
           <Languages className="mx-1 size-3.5 text-muted-foreground" aria-hidden />
           {(["ko", "en"] as const).map((value) => (
             <button
@@ -79,7 +79,7 @@ export function Topbar({
               data-testid={`locale-${value}`}
               onClick={() => startTransition(() => setLocale(value))}
               className={cn(
-                "rounded px-2 py-1 transition-colors",
+                "whitespace-nowrap rounded px-2 py-1 transition-colors",
                 locale === value ? "bg-primary font-medium text-white" : "text-muted-foreground hover:text-foreground",
               )}
             >

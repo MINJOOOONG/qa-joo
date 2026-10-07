@@ -7,22 +7,27 @@ import { Button } from "@/components/ui/button";
 import { getPreferences, scopePreferences } from "@/lib/preferences";
 import { getServiceContext } from "@/lib/server-context";
 import { listRunSummaries } from "@/lib/services/runs";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Test Runs" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.runs.list.title };
+}
 
 export default async function RunsPage() {
-  const [ctx, storedPreferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const [ctx, storedPreferences, { t }] = await Promise.all([getServiceContext(), getPreferences(), getI18n()]);
+  const m = t.runs.list;
   const preferences = await scopePreferences(ctx.repo, storedPreferences);
   const runs = await listRunSummaries(ctx, preferences.projectId ? { projectId: preferences.projectId } : {});
   return (
     <>
       <PageHeader
-        title="Test Runs"
-        description={preferences.projectId ? "Runs for the current project." : "Runs across all projects."}
+        title={m.title}
+        description={preferences.projectId ? m.descriptionProject : m.descriptionAll}
         actions={
           <Button asChild>
             <Link href={`/runs/new${preferences.projectId ? `?project=${preferences.projectId}` : ""}`}>
-              <Plus /> Create Test Run
+              <Plus /> {m.create}
             </Link>
           </Button>
         }
@@ -31,7 +36,7 @@ export default async function RunsPage() {
         {runs.length ? (
           <RunsTable runs={runs} />
         ) : (
-          <EmptyState icon={PlayCircle} title="No test runs yet" description="Create a run from approved test cases to start executing." />
+          <EmptyState icon={PlayCircle} title={m.emptyTitle} description={m.emptyDescription} />
         )}
       </div>
     </>

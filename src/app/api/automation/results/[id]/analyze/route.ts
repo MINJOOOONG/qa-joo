@@ -1,6 +1,6 @@
 import { analyzeFailure } from "@/lib/ai/failure-analyzer";
 import { getLlmProvider } from "@/lib/ai/provider";
-import { errorResponse } from "@/lib/errors";
+import { getRequestLocale, localizedErrorResponse } from "@/lib/i18n/error-response";
 import { getServiceContext } from "@/lib/server-context";
 import { analyzeAutomationFailure } from "@/lib/services/automation";
 
@@ -12,9 +12,9 @@ export async function POST(_request: Request, { params }: RouteContext<"/api/aut
     const ctx = await getServiceContext();
     const { id } = await params;
     const provider = getLlmProvider();
-    const result = await analyzeAutomationFailure(ctx, { analyze: (context) => analyzeFailure(context, provider) }, id);
+    const result = await analyzeAutomationFailure(ctx, { analyze: (context) => analyzeFailure(context, provider) }, id, await getRequestLocale());
     return Response.json({ result });
   } catch (error) {
-    return errorResponse(error);
+    return localizedErrorResponse(error);
   }
 }

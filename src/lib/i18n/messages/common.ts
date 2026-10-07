@@ -35,6 +35,9 @@ export const common = defineMessages({
       daysAgo: "{n}d ago",
     },
     language: { label: "Language", ko: "한국어", en: "English" },
+    globalSearch: { placeholder: "Search projects, cases, runs…", ariaLabel: "Global search" },
+    aiBadge: { generated: "AI GENERATED", suggestion: "AI SUGGESTION", draft: "AI DRAFT" },
+    progressExecuted: "{percent} executed",
   },
   ko: {
     appName: "QA JOO",
@@ -69,5 +72,8 @@ export const common = defineMessages({
       daysAgo: "{n}일 전",
     },
     language: { label: "언어", ko: "한국어", en: "English" },
+    globalSearch: { placeholder: "프로젝트, 케이스, 런 검색…", ariaLabel: "전체 검색" },
+    aiBadge: { generated: "AI 생성", suggestion: "AI 제안", draft: "AI 초안" },
+    progressExecuted: "{percent} 실행됨",
   },
 });

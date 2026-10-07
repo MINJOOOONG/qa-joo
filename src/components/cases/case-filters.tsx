@@ -5,45 +5,38 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/input";
-import {
-  AUTOMATION_STATUSES,
-  AUTOMATION_STATUS_LABELS,
-  CASE_TYPES,
-  CASE_TYPE_LABELS,
-  PRIORITIES,
-  PRIORITY_LABELS,
-  RESULT_STATUSES,
-  RESULT_STATUS_LABELS,
-} from "@/lib/domain/constants";
+import { AUTOMATION_STATUSES, CASE_TYPES, PRIORITIES, RESULT_STATUSES } from "@/lib/domain/constants";
+import { fmt } from "@/lib/i18n/define";
+import { useI18n } from "@/lib/i18n/client";
+import type { Dictionary } from "@/lib/i18n/dictionary";
 
 interface Option {
   value: string;
   label: string;
 }
 
-const FILTERS: Array<{ key: string; label: string; options: Option[] }> = [
-  { key: "type", label: "Type", options: CASE_TYPES.map((v) => ({ value: v, label: CASE_TYPE_LABELS[v] })) },
-  { key: "priority", label: "Priority", options: PRIORITIES.map((v) => ({ value: v, label: PRIORITY_LABELS[v] })) },
-  { key: "automation", label: "Automation", options: AUTOMATION_STATUSES.map((v) => ({ value: v, label: AUTOMATION_STATUS_LABELS[v] })) },
-  { key: "result", label: "Last Result", options: RESULT_STATUSES.map((v) => ({ value: v, label: RESULT_STATUS_LABELS[v] })) },
-  {
-    key: "source",
-    label: "Source",
-    options: [
-      { value: "manual", label: "Manual" },
-      { value: "ai_generated", label: "AI generated" },
-    ],
-  },
-  {
-    key: "review",
-    label: "Review",
-    options: [
-      { value: "approved", label: "Approved" },
-      { value: "draft", label: "AI Draft" },
-      { value: "rejected", label: "Rejected" },
-    ],
-  },
-];
+const FILTER_KEYS = ["type", "priority", "automation", "result", "source", "review"] as const;
+
+function buildFilters(t: Dictionary): Array<{ key: string; label: string; options: Option[] }> {
+  const f = t.cases.filters;
+  const e = t.enums;
+  return [
+    { key: "type", label: f.type, options: CASE_TYPES.map((v) => ({ value: v, label: e.caseType[v] })) },
+    { key: "priority", label: f.priority, options: PRIORITIES.map((v) => ({ value: v, label: e.priority[v] })) },
+    { key: "automation", label: f.automation, options: AUTOMATION_STATUSES.map((v) => ({ value: v, label: e.automationStatus[v] })) },
+    { key: "result", label: f.lastResult, options: RESULT_STATUSES.map((v) => ({ value: v, label: e.resultStatus[v] })) },
+    {
+      key: "source",
+      label: f.source,
+      options: (["manual", "ai_generated"] as const).map((v) => ({ value: v, label: e.caseSource[v] })),
+    },
+    {
+      key: "review",
+      label: f.review,
+      options: (["approved", "draft", "rejected"] as const).map((v) => ({ value: v, label: e.reviewStatus[v] })),
+    },
+  ];
+}
 
 export function CaseFilters({
   projects,
@@ -55,6 +48,9 @@ export function CaseFilters({
   showProject: boolean;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
+  const f = t.cases.filters;
+  const filters = buildFilters(t);
   const pathname = usePathname();
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
@@ -82,7 +78,7 @@ export function CaseFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce only on input changes
   }, [q]);
 
-  const active = ["project", "section", ...FILTERS.map((f) => f.key), "q"].some((key) => params.get(key));
+  const active = ["project", "section", ...FILTER_KEYS, "q"].some((key) => params.get(key));
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -91,20 +87,20 @@ export function CaseFilters({
         <input
           value={q}
           onChange={(event) => setQ(event.target.value)}
-          placeholder="Search ID or title"
-          aria-label="Search test cases"
+          placeholder={f.searchPlaceholder}
+          aria-label={f.searchLabel}
           className="h-7 w-52 rounded-md border border-input bg-background pl-7 pr-2 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
         />
       </div>
       {showProject ? (
         <NativeSelect
-          aria-label="Project"
+          aria-label={f.project}
           className="h-7 w-auto text-xs"
           value={params.get("project") ?? ""}
           onChange={(event) => update("project", event.target.value || null)}
         >
-          <option value="">Project: current</option>
-          <option value="all">All projects</option>
+          <option value="">{f.projectCurrent}</option>
+          <option value="all">{f.allProjects}</option>
           {projects.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -114,13 +110,13 @@ export function CaseFilters({
       ) : null}
       {sections.length ? (
         <NativeSelect
-          aria-label="Section"
+          aria-label={f.section}
           className="h-7 w-auto max-w-56 text-xs"
           value={params.get("section") ?? ""}
           onChange={(event) => update("section", event.target.value || null)}
         >
-          <option value="">Section: all</option>
-          <option value="none">Unsectioned</option>
+          <option value="">{f.sectionAll}</option>
+          <option value="none">{f.unsectioned}</option>
           {sections.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -128,7 +124,7 @@ export function CaseFilters({
           ))}
         </NativeSelect>
       ) : null}
-      {FILTERS.map((filter) => (
+      {filters.map((filter) => (
         <NativeSelect
           key={filter.key}
           aria-label={filter.label}
@@ -136,7 +132,7 @@ export function CaseFilters({
           value={params.get(filter.key) ?? ""}
           onChange={(event) => update(filter.key, event.target.value || null)}
         >
-          <option value="">{filter.label}: all</option>
+          <option value="">{fmt(f.filterAll, { label: filter.label })}</option>
           {filter.options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -154,7 +150,7 @@ export function CaseFilters({
             router.replace(pathname, { scroll: false });
           }}
         >
-          <X /> Clear
+          <X /> {f.clear}
         </Button>
       ) : null}
     </div>

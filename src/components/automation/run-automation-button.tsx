@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bot } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
 
 /** Queues an automation run for every approved automated case (optionally scoped to a test run). */
 export function RunAutomationButton({
@@ -12,7 +13,7 @@ export function RunAutomationButton({
   testRunId,
   testCaseIds,
   automatedCount,
-  label = "Run Automation",
+  label,
   variant = "outline",
   size = "default",
 }: {
@@ -25,6 +26,8 @@ export function RunAutomationButton({
   size?: "default" | "sm";
 }) {
   const router = useRouter();
+  const { t } = useI18n();
+  const m = t.automation.runButton;
   const [pending, setPending] = useState(false);
 
   const start = async () => {
@@ -37,13 +40,13 @@ export function RunAutomationButton({
       });
       const body = await response.json();
       if (!response.ok) {
-        toast.error(body?.error?.message ?? "Could not start the automation run.");
+        toast.error(body?.error?.message ?? m.startFailed);
         return;
       }
-      toast.success("Automation run queued.");
+      toast.success(m.queued);
       router.push(`/automation/runs/${body.run.id}`);
     } catch {
-      toast.error("Network error while starting the automation run.");
+      toast.error(m.networkError);
     } finally {
       setPending(false);
     }
@@ -55,10 +58,10 @@ export function RunAutomationButton({
       size={size}
       onClick={start}
       disabled={pending || automatedCount === 0}
-      title={automatedCount === 0 ? "Approve a Playwright draft for at least one case first." : undefined}
+      title={automatedCount === 0 ? m.needApproved : undefined}
       data-testid="run-automation"
     >
-      <Bot /> {pending ? "Queuing…" : label}
+      <Bot /> {pending ? m.queuing : (label ?? m.label)}
       {automatedCount > 0 ? <span className="text-xs opacity-70">({automatedCount})</span> : null}
     </Button>
   );

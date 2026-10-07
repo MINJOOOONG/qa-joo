@@ -13,6 +13,7 @@ import type { AutomationRunStatus, AutomationTrigger } from "@/lib/domain/consta
 import type { PageInfo } from "@/lib/analyzer/types";
 import type { AutomationDraft, AutomationDraftInput } from "@/lib/ai/automation-generator";
 import type { FailureContext } from "@/lib/ai/failure-analyzer";
+import type { Locale } from "@/lib/i18n/config";
 import { lintAutomationCode, type LintReport } from "@/lib/automation/code-lint";
 import { automationFilePath, isSafeSpecPath } from "@/lib/automation/paths";
 import type { DispatchResult } from "@/lib/automation/dispatch";
@@ -434,7 +435,13 @@ export interface FailureAnalysisDeps {
 }
 
 /** Runs AI (or heuristic) triage for a failed automated result and stores it as a suggestion. */
-export async function analyzeAutomationFailure(ctx: ServiceContext, deps: FailureAnalysisDeps, resultId: string): Promise<AutomationResult> {
+export async function analyzeAutomationFailure(
+  ctx: ServiceContext,
+  deps: FailureAnalysisDeps,
+  resultId: string,
+  /** UI language at analysis time (callers read it from the request); the triage is written in it. */
+  locale: Locale = "ko",
+): Promise<AutomationResult> {
   const result = await ctx.repo.getAutomationResult(resultId);
   if (!result) throw notFound("Automation result", resultId);
   if (result.status !== "failed") throw new AppError("invalid_state", "Only failed results can be analyzed.");
@@ -450,6 +457,7 @@ export async function analyzeAutomationFailure(ctx: ServiceContext, deps: Failur
     code: automation?.code ?? null,
     durationMs: result.durationMs,
     targetUrl: run.targetUrl,
+    locale,
   });
   const saved = await ctx.repo.setAutomationResultAnalysis(result.id, analysis);
   await logActivity(ctx, {

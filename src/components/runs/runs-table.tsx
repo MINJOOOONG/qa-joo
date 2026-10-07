@@ -5,24 +5,27 @@ import { RunProgressCell } from "@/components/common/run-progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPercent } from "@/lib/domain/run-stats";
 import type { RunSummary } from "@/lib/services/runs";
-import { formatRelative } from "@/lib/utils";
+import { formatRelative } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
-export function RunsTable({ runs, showProject = true }: { runs: RunSummary[]; showProject?: boolean }) {
+export async function RunsTable({ runs, showProject = true }: { runs: RunSummary[]; showProject?: boolean }) {
+  const { t, locale } = await getI18n();
+  const m = t.runs.table;
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Run</TableHead>
-            {showProject ? <TableHead>Project</TableHead> : null}
-            <TableHead>Environment</TableHead>
-            <TableHead>Build</TableHead>
-            <TableHead>Progress</TableHead>
-            <TableHead className="text-right">Passed</TableHead>
-            <TableHead className="text-right">Failed</TableHead>
-            <TableHead className="text-right">Pass rate</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Updated</TableHead>
+            <TableHead>{m.run}</TableHead>
+            {showProject ? <TableHead>{m.project}</TableHead> : null}
+            <TableHead>{m.environment}</TableHead>
+            <TableHead>{m.build}</TableHead>
+            <TableHead>{m.progress}</TableHead>
+            <TableHead className="text-right">{m.passed}</TableHead>
+            <TableHead className="text-right">{m.failed}</TableHead>
+            <TableHead className="text-right">{m.passRate}</TableHead>
+            <TableHead>{m.status}</TableHead>
+            <TableHead>{m.updated}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -55,9 +58,9 @@ export function RunsTable({ runs, showProject = true }: { runs: RunSummary[]; sh
               <TableCell className="text-right tabular-nums text-failed">{stats.failed}</TableCell>
               <TableCell className="text-right tabular-nums">{formatPercent(stats.passRate)}</TableCell>
               <TableCell>
-                {run.status === "active" ? <Badge variant="info">Active</Badge> : <Badge>Completed</Badge>}
+                {run.status === "active" ? <Badge variant="info">{t.enums.testRunStatus.active}</Badge> : <Badge>{t.enums.testRunStatus.completed}</Badge>}
               </TableCell>
-              <TableCell className="text-xs text-muted-foreground">{formatRelative(run.updatedAt)}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">{formatRelative(run.updatedAt, locale)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

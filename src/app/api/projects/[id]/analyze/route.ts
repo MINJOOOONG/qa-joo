@@ -3,8 +3,8 @@ import { analyzeRepository } from "@/lib/analyzer/repo-analyzer";
 import { getLlmProvider } from "@/lib/ai/provider";
 import { generateTestCases } from "@/lib/ai/test-case-generator";
 import { getConfig } from "@/lib/env";
-import { errorResponse } from "@/lib/errors";
 import { readJsonBody } from "@/lib/http";
+import { getRequestLocale, localizedErrorResponse } from "@/lib/i18n/error-response";
 import { getServiceContext } from "@/lib/server-context";
 import { runProjectAnalysis } from "@/lib/services/analysis";
 
@@ -32,6 +32,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/proj
       },
       { ...body, projectId: id },
       body.mode === "gaps" ? "gaps" : "analyze",
+      await getRequestLocale(),
     );
     return Response.json({
       created: result.created.length,
@@ -40,6 +41,6 @@ export async function POST(request: Request, { params }: RouteContext<"/api/proj
       notes: result.notes,
     });
   } catch (error) {
-    return errorResponse(error);
+    return localizedErrorResponse(error);
   }
 }

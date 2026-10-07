@@ -10,12 +10,16 @@ import { isAppError } from "@/lib/errors";
 import { formatPercent } from "@/lib/domain/run-stats";
 import { getServiceContext } from "@/lib/server-context";
 import { getRunDetail } from "@/lib/services/runs";
-import { formatRelative } from "@/lib/utils";
+import { fmt } from "@/lib/i18n/define";
+import { formatRelative } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function RunDetailPage({ params, searchParams }: PageProps<"/runs/[id]">) {
   const { id } = await params;
   const query = await searchParams;
   const ctx = await getServiceContext();
+  const { t, locale } = await getI18n();
+  const m = t.runs.detail;
   const detail = await getRunDetail(ctx, id).catch((error) => {
     if (isAppError(error) && error.code === "not_found") notFound();
     throw error;
@@ -29,7 +33,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
       <div className="border-b px-6 py-4">
         <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
           <Link href="/runs" className="hover:underline">
-            Test Runs
+            {t.runs.list.title}
           </Link>
           <span>/</span>
           <Link href={`/projects/${project.key}`} className="hover:underline">
@@ -42,15 +46,15 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
               <h1 className="truncate text-lg font-semibold tracking-tight" data-testid="run-name">
                 {run.name}
               </h1>
-              {run.status === "active" ? <Badge variant="info">Active</Badge> : <Badge>Completed</Badge>}
+              {run.status === "active" ? <Badge variant="info">{t.enums.testRunStatus.active}</Badge> : <Badge>{t.enums.testRunStatus.completed}</Badge>}
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <EnvironmentBadge environment={run.environment} />
               <span>
-                Build <span className="font-mono text-foreground">{run.build ?? "—"}</span>
+                {m.build} <span className="font-mono text-foreground">{run.build ?? "—"}</span>
               </span>
-              <span>Created by {run.createdBy}</span>
-              <span>Updated {formatRelative(run.updatedAt)}</span>
+              <span>{fmt(m.createdBy, { name: run.createdBy })}</span>
+              <span>{fmt(m.updated, { time: formatRelative(run.updatedAt, locale) })}</span>
             </div>
             {run.description ? <p className="max-w-3xl text-[13px] text-zinc-700">{run.description}</p> : null}
           </div>
@@ -60,7 +64,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
               testRunId={run.id}
               testCaseIds={automatedIds}
               automatedCount={run.status === "active" ? automatedIds.length : 0}
-              label="Run Automated Tests"
+              label={m.runAutomated}
             />
             <RunHeaderActions runId={run.id} status={run.status} untested={stats.untested} />
           </div>
@@ -68,7 +72,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
         <div className="mt-4 grid max-w-3xl grid-cols-[1fr_auto_auto] items-center gap-6">
           <div>
             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-              <span>Progress</span>
+              <span>{m.progress}</span>
               <span className="tabular-nums" data-testid="run-progress">
                 {stats.executed}/{stats.total} · {formatPercent(stats.progress, "0%")}
               </span>
@@ -76,14 +80,14 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
             <RunProgressBar stats={stats} height="h-2" />
           </div>
           <div className="text-right">
-            <div className="text-xs text-muted-foreground">Pass Rate</div>
+            <div className="text-xs text-muted-foreground">{m.passRate}</div>
             <div className="text-xl font-semibold tabular-nums text-passed" data-testid="run-pass-rate">
               {formatPercent(stats.passRate)}
             </div>
           </div>
           {latestAutomation ? (
             <Link href={`/automation/runs/${latestAutomation.id}`} className="text-right text-xs hover:underline">
-              <div className="text-muted-foreground">Last automation</div>
+              <div className="text-muted-foreground">{m.lastAutomation}</div>
               <AutomationRunStatusBadge status={latestAutomation.status} />
             </Link>
           ) : null}
@@ -97,9 +101,9 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
           initialCaseId={typeof query.case === "string" ? query.case : null}
         />
         <p className="mt-3 text-xs text-muted-foreground">
-          Tip: open a case and use <kbd className="rounded border px-1">P</kbd> <kbd className="rounded border px-1">F</kbd>{" "}
-          <kbd className="rounded border px-1">B</kbd> <kbd className="rounded border px-1">S</kbd> to record, <kbd className="rounded border px-1">J</kbd>/
-          <kbd className="rounded border px-1">K</kbd> to move. Passing a case jumps to the next untested one.
+          {m.tipUse} <kbd className="rounded border px-1">P</kbd> <kbd className="rounded border px-1">F</kbd>{" "}
+          <kbd className="rounded border px-1">B</kbd> <kbd className="rounded border px-1">S</kbd> {m.tipRecord} <kbd className="rounded border px-1">J</kbd>/
+          <kbd className="rounded border px-1">K</kbd> {m.tipMove}
         </p>
       </div>
     </>

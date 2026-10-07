@@ -5,15 +5,19 @@ import { CancelRunButton } from "@/components/automation/cancel-run-button";
 import { FailureAnalysisPanel } from "@/components/automation/failure-analysis";
 import { RunPoller } from "@/components/automation/run-poller";
 import { AutomationRunStatusBadge, EnvironmentBadge, ResultBadge } from "@/components/common/badges";
-import { AUTOMATION_TRIGGER_LABELS } from "@/lib/domain/constants";
 import { formatDuration } from "@/lib/domain/run-stats";
-import { formatRelative } from "@/lib/utils";
+import { fmt } from "@/lib/i18n/define";
+import { formatDateTime, formatRelative } from "@/lib/i18n/format";
 import { isAppError } from "@/lib/errors";
 import { getServiceContext } from "@/lib/server-context";
 import { getAutomationRunDetail } from "@/lib/services/automation";
-import { cn, formatDateTime } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Automation Run" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.automation.run.metaTitle };
+}
 
 function isPublicHttps(url: string | null): url is string {
   return Boolean(url && url.startsWith("https://"));
@@ -23,6 +27,8 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
   const { id } = await params;
   const query = await searchParams;
   const ctx = await getServiceContext();
+  const { t, locale } = await getI18n();
+  const m = t.automation.run;
   const detail = await getAutomationRunDetail(ctx, id).catch((error) => {
     if (isAppError(error) && error.code === "not_found") notFound();
     throw error;
@@ -37,7 +43,7 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
       <div className="border-b px-6 py-4">
         <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
           <Link href="/automation" className="hover:underline">
-            Automation
+            {t.automation.page.title}
           </Link>
           <span>/</span>
           <Link href={`/projects/${project.key}/automation`} className="hover:underline">
@@ -48,25 +54,25 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold tracking-tight">
-                Automation run <span className="font-mono text-base text-muted-foreground">{run.id.slice(0, 8)}</span>
+                {m.heading} <span className="font-mono text-base text-muted-foreground">{run.id.slice(0, 8)}</span>
               </h1>
               <AutomationRunStatusBadge status={run.status} />
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <EnvironmentBadge environment={run.environment} />
-              <span>Trigger: {AUTOMATION_TRIGGER_LABELS[run.trigger]}</span>
-              <span className="capitalize">Runner: {run.runner}</span>
-              <span>Target: {run.targetUrl}</span>
-              {run.branch ? <span>Branch: {run.branch}</span> : null}
+              <span>{fmt(m.trigger, { trigger: t.enums.automationTrigger[run.trigger] })}</span>
+              <span className="capitalize">{fmt(m.runner, { runner: t.automation.runnerName[run.runner] })}</span>
+              <span>{fmt(m.target, { url: run.targetUrl })}</span>
+              {run.branch ? <span>{fmt(m.branch, { branch: run.branch })}</span> : null}
               {run.commitSha ? <span className="font-mono">{run.commitSha.slice(0, 7)}</span> : null}
               {testRun ? (
                 <Link href={`/runs/${testRun.id}`} className="text-primary hover:underline">
-                  Test run: {testRun.name}
+                  {fmt(m.testRun, { name: testRun.name })}
                 </Link>
               ) : null}
               {run.externalUrl ? (
                 <a href={run.externalUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                  CI logs <ExternalLink className="size-3" />
+                  {m.ciLogs} <ExternalLink className="size-3" />
                 </a>
               ) : null}
             </div>
@@ -75,25 +81,25 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
         </div>
         <div className="mt-3 flex flex-wrap gap-6 text-[13px]">
           <span>
-            <span className="text-muted-foreground">Specs</span> <span className="font-semibold tabular-nums">{summary.total}</span>
+            <span className="text-muted-foreground">{m.specs}</span> <span className="font-semibold tabular-nums">{summary.total}</span>
           </span>
           <span>
-            <span className="text-muted-foreground">Passed</span> <span className="font-semibold tabular-nums text-passed">{summary.passed}</span>
+            <span className="text-muted-foreground">{m.passed}</span> <span className="font-semibold tabular-nums text-passed">{summary.passed}</span>
           </span>
           <span>
-            <span className="text-muted-foreground">Failed</span> <span className="font-semibold tabular-nums text-failed">{summary.failed}</span>
+            <span className="text-muted-foreground">{m.failed}</span> <span className="font-semibold tabular-nums text-failed">{summary.failed}</span>
           </span>
           <span>
-            <span className="text-muted-foreground">Pending</span> <span className="font-semibold tabular-nums">{summary.pending}</span>
+            <span className="text-muted-foreground">{m.pending}</span> <span className="font-semibold tabular-nums">{summary.pending}</span>
           </span>
           <span>
-            <span className="text-muted-foreground">Duration</span> <span className="font-semibold tabular-nums">{formatDuration(summary.durationMs)}</span>
+            <span className="text-muted-foreground">{m.duration}</span> <span className="font-semibold tabular-nums">{formatDuration(summary.durationMs)}</span>
           </span>
           <span className="text-muted-foreground">
-            Started {formatDateTime(run.startedAt)} · Finished {formatDateTime(run.finishedAt)}
+            {fmt(m.startedFinished, { started: formatDateTime(run.startedAt, locale), finished: formatDateTime(run.finishedAt, locale) })}
           </span>
         </div>
-        {run.error ? <p className="mt-2 text-[13px] text-destructive">Runner error: {run.error}</p> : null}
+        {run.error ? <p className="mt-2 text-[13px] text-destructive">{fmt(m.runnerError, { error: run.error })}</p> : null}
         {run.status === "queued" && run.runner === "external" ? (
           <pre className="code-block mt-3 overflow-x-auto rounded bg-zinc-950 p-3 text-zinc-100">
             {`QA_JOO_URL=<this QA JOO URL> RUNNER_CALLBACK_SECRET=<secret> npm run qa:runner -- --run ${run.id}`}
@@ -121,7 +127,7 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
                   {automationTest.filePath}
                 </Link>
               ) : null}
-              <span className="ml-auto tabular-nums text-xs text-muted-foreground">{result ? formatDuration(result.durationMs) : active ? "running…" : "—"}</span>
+              <span className="ml-auto tabular-nums text-xs text-muted-foreground">{result ? formatDuration(result.durationMs) : active ? m.running : "—"}</span>
             </div>
             {result?.status === "failed" ? (
               <div className="space-y-3 border-t px-3 py-3">
@@ -132,27 +138,27 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
                   {result.screenshotUrl ? (
                     <a href={result.screenshotUrl} target="_blank" rel="noreferrer" className="block">
                       {/* eslint-disable-next-line @next/next/no-img-element -- runner artifact */}
-                      <img src={result.screenshotUrl} alt={`Failure screenshot for ${testCase.caseKey}`} className="max-h-64 rounded border" data-testid="failure-screenshot" />
+                      <img src={result.screenshotUrl} alt={fmt(m.screenshotAlt, { key: testCase.caseKey })} className="max-h-64 rounded border" data-testid="failure-screenshot" />
                     </a>
                   ) : null}
                   <div className="flex flex-col gap-1 text-xs">
                     {result.traceUrl ? (
                       <a href={result.traceUrl} className="text-primary hover:underline" data-testid="trace-link">
-                        Download trace.zip
+                        {m.downloadTrace}
                       </a>
                     ) : null}
                     {isPublicHttps(result.traceUrl) ? (
                       <a href={`https://trace.playwright.dev/?trace=${encodeURIComponent(result.traceUrl)}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                        Open in Playwright Trace Viewer
+                        {m.openTraceViewer}
                       </a>
                     ) : result.traceUrl ? (
                       <span className="text-muted-foreground">
-                        View locally: <code className="font-mono">npx playwright show-trace trace.zip</code>
+                        {m.viewLocally} <code className="font-mono">npx playwright show-trace trace.zip</code>
                       </span>
                     ) : null}
                     {result.logUrl ? (
                       <a href={result.logUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                        Runner log
+                        {m.runnerLog}
                       </a>
                     ) : null}
                   </div>
@@ -160,7 +166,7 @@ export default async function AutomationRunPage({ params, searchParams }: PagePr
                 <FailureAnalysisPanel
                   resultId={result.id}
                   analysis={result.analysis}
-                  analyzedLabel={result.analysis ? formatRelative(result.analysis.analyzedAt) : null}
+                  analyzedLabel={result.analysis ? formatRelative(result.analysis.analyzedAt, locale) : null}
                 />
               </div>
             ) : null}

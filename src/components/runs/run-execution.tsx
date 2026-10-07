@@ -13,16 +13,15 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import { recordResultAction } from "@/app/actions/runs";
 import {
   FAILURE_CATEGORIES,
-  FAILURE_CATEGORY_LABELS,
-  RESULT_STATUS_LABELS,
   SEVERITIES,
-  SEVERITY_LABELS,
   type ExecutedResultStatus,
   type ResultStatus,
 } from "@/lib/domain/constants";
 import { computeRunStats, formatDuration } from "@/lib/domain/run-stats";
 import type { RunRow } from "@/lib/services/runs";
 import { cn } from "@/lib/utils";
+import { fmt } from "@/lib/i18n/define";
+import { useI18n } from "@/lib/i18n/client";
 
 const FILTERS: ResultStatus[] = ["passed", "failed", "blocked", "skipped", "untested"];
 
@@ -43,6 +42,8 @@ function isPublicHttp(url: string | null | undefined): url is string {
 }
 
 function EvidenceLinks({ row }: { row: RunRow }) {
+  const { t } = useI18n();
+  const m = t.runs.execution;
   const evidence = {
     screenshot: row.automationResult?.screenshotUrl ?? row.result?.evidence.screenshotUrl ?? null,
     trace: row.automationResult?.traceUrl ?? row.result?.evidence.traceUrl ?? null,
@@ -52,17 +53,17 @@ function EvidenceLinks({ row }: { row: RunRow }) {
   return (
     <span className="flex items-center gap-1.5">
       {evidence.screenshot ? (
-        <a href={evidence.screenshot} target="_blank" rel="noreferrer" className="text-primary hover:underline" title="Screenshot" onClick={(e) => e.stopPropagation()}>
+        <a href={evidence.screenshot} target="_blank" rel="noreferrer" className="text-primary hover:underline" title={m.screenshot} onClick={(e) => e.stopPropagation()}>
           <ImageIcon className="size-3.5" />
         </a>
       ) : null}
       {evidence.trace ? (
-        <a href={evidence.trace} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline" title="Playwright trace" onClick={(e) => e.stopPropagation()}>
-          Trace
+        <a href={evidence.trace} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline" title={m.playwrightTrace} onClick={(e) => e.stopPropagation()}>
+          {m.trace}
         </a>
       ) : null}
       {evidence.log ? (
-        <a href={evidence.log} target="_blank" rel="noreferrer" className="text-primary hover:underline" title="Log" onClick={(e) => e.stopPropagation()}>
+        <a href={evidence.log} target="_blank" rel="noreferrer" className="text-primary hover:underline" title={m.log} onClick={(e) => e.stopPropagation()}>
           <FileText className="size-3.5" />
         </a>
       ) : null}
@@ -82,6 +83,8 @@ export function RunExecution({
   initialCaseId: string | null;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
+  const m = t.runs.execution;
   const [selectedId, setSelectedId] = useState<string | null>(initialCaseId);
   const [filter, setFilter] = useState<ResultStatus | null>(null);
   const stats = useMemo(() => computeRunStats(rows.length, rows.map(statusOf)), [rows]);
@@ -112,7 +115,7 @@ export function RunExecution({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by result">
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={m.filterByResult}>
         {FILTERS.map((status) => (
           <button
             key={status}
@@ -125,13 +128,13 @@ export function RunExecution({
               filter === status && "border-primary bg-accent",
             )}
           >
-            <span className="text-xs text-muted-foreground">{RESULT_STATUS_LABELS[status]}</span>
+            <span className="text-xs text-muted-foreground">{t.enums.resultStatus[status]}</span>
             <span className={cn("text-lg font-semibold tabular-nums", COUNT_STYLE[status])}>{stats[status]}</span>
           </button>
         ))}
         {filter ? (
           <Button variant="ghost" size="sm" onClick={() => setFilter(null)}>
-            Show all
+            {m.showAll}
           </Button>
         ) : null}
       </div>
@@ -140,14 +143,14 @@ export function RunExecution({
         <table className="w-full text-[13px]">
           <thead className="bg-subtle text-[11px] uppercase tracking-wide text-muted-foreground">
             <tr className="border-b">
-              <th className="w-24 px-3 py-2 text-left font-medium">ID</th>
-              <th className="px-3 py-2 text-left font-medium">Test Case</th>
-              <th className="px-3 py-2 text-left font-medium">Type</th>
-              <th className="px-3 py-2 text-left font-medium">Mode</th>
-              <th className="px-3 py-2 text-left font-medium">Result</th>
-              <th className="px-3 py-2 text-right font-medium">Duration</th>
-              <th className="px-3 py-2 text-left font-medium">Evidence</th>
-              <th className="px-3 py-2 text-left font-medium">Comment</th>
+              <th className="w-24 px-3 py-2 text-left font-medium">{m.colId}</th>
+              <th className="px-3 py-2 text-left font-medium">{m.colCase}</th>
+              <th className="px-3 py-2 text-left font-medium">{m.colType}</th>
+              <th className="px-3 py-2 text-left font-medium">{m.colMode}</th>
+              <th className="px-3 py-2 text-left font-medium">{m.colResult}</th>
+              <th className="px-3 py-2 text-right font-medium">{m.colDuration}</th>
+              <th className="px-3 py-2 text-left font-medium">{m.colEvidence}</th>
+              <th className="px-3 py-2 text-left font-medium">{m.colComment}</th>
             </tr>
           </thead>
           <tbody>
@@ -163,7 +166,7 @@ export function RunExecution({
                 <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{row.testCase.caseKey}</td>
                 <td className="max-w-[26rem] px-3 py-2">
                   <div className="truncate font-medium">{row.testCase.title}</div>
-                  <div className="truncate text-[11px] text-muted-foreground">{row.sectionPath ?? "Unsectioned"}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">{row.sectionPath ?? m.unsectioned}</div>
                 </td>
                 <td className="px-3">
                   <TypeBadge type={row.testCase.type} />
@@ -185,7 +188,7 @@ export function RunExecution({
             ))}
           </tbody>
         </table>
-        {visible.length === 0 ? <p className="p-6 text-center text-[13px] text-muted-foreground">No cases with this result.</p> : null}
+        {visible.length === 0 ? <p className="p-6 text-center text-[13px] text-muted-foreground">{m.noResults}</p> : null}
       </div>
 
       <Sheet open={selected !== null} onOpenChange={(open) => !open && select(null)}>
@@ -204,10 +207,10 @@ export function RunExecution({
                 router.refresh();
                 const next = nextUntested(selected.testCase.id);
                 if (next) {
-                  toast.success(`${selected.testCase.caseKey} marked ${RESULT_STATUS_LABELS[status]}`);
+                  toast.success(fmt(m.toastMarked, { key: selected.testCase.caseKey, status: t.enums.resultStatus[status] }));
                   select(next);
                 } else {
-                  toast.success("All cases in this run have a result.");
+                  toast.success(m.toastAllDone);
                   select(null);
                 }
               }}
@@ -239,6 +242,8 @@ function ExecutionPanel({
   onRecorded: (status: ExecutedResultStatus) => void;
 }) {
   const { testCase, result, automationResult } = row;
+  const { t } = useI18n();
+  const m = t.runs.execution;
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<"idle" | "failed" | "blocked">("idle");
   const [comment, setComment] = useState(result?.comment ?? "");
@@ -287,12 +292,12 @@ function ExecutionPanel({
           return;
         }
         if (status === "untested") {
-          toast.success(`${testCase.caseKey} reset to Untested`);
+          toast.success(fmt(m.toastReset, { key: testCase.caseKey }));
           return;
         }
         onRecorded(status);
       }),
-    [runId, testCase.id, testCase.caseKey, comment, actual, category, severity, evidence, seconds, onRecorded],
+    [runId, testCase.id, testCase.caseKey, comment, actual, category, severity, evidence, seconds, onRecorded, m],
   );
 
   const choose = useCallback(
@@ -333,19 +338,19 @@ function ExecutionPanel({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="font-mono">{testCase.caseKey}</span>
           <span>·</span>
-          <span>{row.sectionPath ?? "Unsectioned"}</span>
+          <span>{row.sectionPath ?? m.unsectioned}</span>
           <span className="ml-auto tabular-nums">
             {position} / {total}
           </span>
-          <Button size="icon-sm" variant="ghost" onClick={onPrev} aria-label="Previous case (K)">
+          <Button size="icon-sm" variant="ghost" onClick={onPrev} aria-label={m.prevCase}>
             <ChevronLeft />
           </Button>
-          <Button size="icon-sm" variant="ghost" onClick={onNext} aria-label="Next case (J)">
+          <Button size="icon-sm" variant="ghost" onClick={onNext} aria-label={m.nextCase}>
             <ChevronRight />
           </Button>
         </div>
         <SheetTitle className="mt-1 leading-snug">{testCase.title}</SheetTitle>
-        <SheetDescription className="sr-only">Execute this test case and record the result.</SheetDescription>
+        <SheetDescription className="sr-only">{m.sheetDescription}</SheetDescription>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <TypeBadge type={testCase.type} />
           <PriorityLabel priority={testCase.priority} />
@@ -353,22 +358,22 @@ function ExecutionPanel({
           <ResultBadge status={result?.status} />
           {result && result.status !== "untested" ? (
             <span className="text-xs text-muted-foreground">
-              by {result.tester ?? "—"} · attempt {result.attempts}
+              {fmt(m.byAttempt, { tester: result.tester ?? "—", attempt: result.attempts })}
             </span>
           ) : null}
           <Link href={`/cases/${testCase.id}`} className="ml-auto text-xs text-primary hover:underline">
-            Open case <ExternalLink className="inline size-3" />
+            {m.openCase} <ExternalLink className="inline size-3" />
           </Link>
         </div>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 text-[13px]">
         <section>
-          <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Preconditions</h3>
-          <p>{testCase.preconditions || <span className="text-muted-foreground">None</span>}</p>
+          <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{m.preconditions}</h3>
+          <p>{testCase.preconditions || <span className="text-muted-foreground">{t.common.none}</span>}</p>
         </section>
         <section>
-          <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Steps</h3>
+          <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{m.steps}</h3>
           <ol className="list-decimal space-y-1 pl-5">
             {testCase.steps.map((step, index) => (
               <li key={index}>{step}</li>
@@ -376,18 +381,18 @@ function ExecutionPanel({
           </ol>
         </section>
         <section className="rounded-md border border-green-200 bg-green-50/50 p-3">
-          <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-green-800">Expected Result</h3>
+          <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-green-800">{m.expectedResult}</h3>
           <p>{testCase.expectedResult}</p>
         </section>
 
         {automationResult ? (
           <section className="space-y-2 rounded-md border p-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Latest automation result</h3>
+              <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{m.latestAutomation}</h3>
               <ResultBadge status={automationResult.status} />
               <span className="text-xs tabular-nums text-muted-foreground">{formatDuration(automationResult.durationMs)}</span>
               <Link href={`/automation/runs/${automationResult.automationRunId}?result=${automationResult.id}`} className="ml-auto text-xs text-primary hover:underline">
-                Automation run →
+                {m.automationRunLink}
               </Link>
             </div>
             {automationResult.errorMessage ? (
@@ -396,13 +401,13 @@ function ExecutionPanel({
             {automationResult.screenshotUrl ? (
               <a href={automationResult.screenshotUrl} target="_blank" rel="noreferrer">
                 {/* eslint-disable-next-line @next/next/no-img-element -- artifacts are served from storage, not optimized */}
-                <img src={automationResult.screenshotUrl} alt={`Screenshot of ${testCase.caseKey} failure`} className="max-h-72 rounded border" />
+                <img src={automationResult.screenshotUrl} alt={fmt(m.screenshotAlt, { key: testCase.caseKey })} className="max-h-72 rounded border" />
               </a>
             ) : null}
             <div className="flex flex-wrap gap-3 text-xs">
               {automationResult.traceUrl ? (
                 <a href={automationResult.traceUrl} className="text-primary hover:underline" target="_blank" rel="noreferrer">
-                  Download trace
+                  {m.downloadTrace}
                 </a>
               ) : null}
               {isPublicHttp(automationResult.traceUrl) ? (
@@ -412,17 +417,17 @@ function ExecutionPanel({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Open in Trace Viewer
+                  {m.openTraceViewer}
                 </a>
               ) : null}
               {automationResult.logUrl ? (
                 <a href={automationResult.logUrl} className="text-primary hover:underline" target="_blank" rel="noreferrer">
-                  Log
+                  {m.log}
                 </a>
               ) : null}
               {automationResult.status === "failed" ? (
                 <Link href={`/automation/runs/${automationResult.automationRunId}?result=${automationResult.id}`} className="inline-flex items-center gap-1 text-violet-700 hover:underline">
-                  <Sparkles className="size-3" /> Analyze Failure
+                  <Sparkles className="size-3" /> {m.analyzeFailure}
                 </Link>
               ) : null}
             </div>
@@ -431,41 +436,41 @@ function ExecutionPanel({
 
         {mode !== "idle" ? (
           <section className={cn("space-y-3 rounded-md border p-3", mode === "failed" ? "border-red-200 bg-red-50/40" : "border-orange-200 bg-orange-50/40")}>
-            <h3 className="text-[13px] font-semibold">{mode === "failed" ? "Record failure" : "Record blocker"}</h3>
+            <h3 className="text-[13px] font-semibold">{mode === "failed" ? m.recordFailure : m.recordBlocker}</h3>
             {mode === "failed" ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Failure Category" htmlFor="failureCategory" required error={errors.failureCategory}>
+                  <Field label={m.failureCategory} htmlFor="failureCategory" required error={errors.failureCategory}>
                     <NativeSelect id="failureCategory" value={category} onChange={(event) => setCategory(event.target.value as typeof category)}>
-                      <option value="">Select…</option>
+                      <option value="">{m.select}</option>
                       {FAILURE_CATEGORIES.map((value) => (
                         <option key={value} value={value}>
-                          {FAILURE_CATEGORY_LABELS[value]}
+                          {t.enums.failureCategory[value]}
                         </option>
                       ))}
                     </NativeSelect>
                   </Field>
-                  <Field label="Severity" htmlFor="severity" required error={errors.severity}>
+                  <Field label={m.severity} htmlFor="severity" required error={errors.severity}>
                     <NativeSelect id="severity" value={severity} onChange={(event) => setSeverity(event.target.value as typeof severity)}>
-                      <option value="">Select…</option>
+                      <option value="">{m.select}</option>
                       {SEVERITIES.map((value) => (
                         <option key={value} value={value}>
-                          {SEVERITY_LABELS[value]}
+                          {t.enums.severity[value]}
                         </option>
                       ))}
                     </NativeSelect>
                   </Field>
                 </div>
-                <Field label="Actual Result" htmlFor="actualResult" required error={errors.actualResult}>
-                  <Textarea id="actualResult" rows={3} value={actual} onChange={(event) => setActual(event.target.value)} placeholder="What happened instead?" />
+                <Field label={m.actualResult} htmlFor="actualResult" required error={errors.actualResult}>
+                  <Textarea id="actualResult" rows={3} value={actual} onChange={(event) => setActual(event.target.value)} placeholder={m.actualPlaceholder} />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   {(
                     [
-                      ["screenshotUrl", "Screenshot URL"],
-                      ["traceUrl", "Trace URL"],
-                      ["logUrl", "Log URL"],
-                      ["networkLogUrl", "Network Log URL"],
+                      ["screenshotUrl", m.screenshotUrl],
+                      ["traceUrl", m.traceUrl],
+                      ["logUrl", m.logUrl],
+                      ["networkLogUrl", m.networkLogUrl],
                     ] as const
                   ).map(([key, label]) => (
                     <Field key={key} label={label} htmlFor={key} error={errors[`evidence.${key}`]}>
@@ -475,24 +480,24 @@ function ExecutionPanel({
                 </div>
               </>
             ) : null}
-            <Field label={mode === "blocked" ? "What is blocking?" : "Comment"} htmlFor="comment" required={mode === "blocked"} error={errors.comment}>
+            <Field label={mode === "blocked" ? m.whatIsBlocking : m.comment} htmlFor="comment" required={mode === "blocked"} error={errors.comment}>
               <Textarea id="comment" rows={2} value={comment} onChange={(event) => setComment(event.target.value)} />
             </Field>
             <div className="flex gap-2">
               <Button variant={mode === "failed" ? "failed" : "blocked"} disabled={pending || locked} onClick={() => record(mode)} data-testid="confirm-result">
-                Save {mode === "failed" ? "failure" : "blocker"}
+                {mode === "failed" ? m.saveFailure : m.saveBlocker}
               </Button>
               <Button variant="ghost" onClick={() => setMode("idle")}>
-                Cancel
+                {t.common.cancel}
               </Button>
             </div>
           </section>
         ) : (
           <div className="grid grid-cols-[1fr_120px] gap-3">
-            <Field label="Comment (optional)" htmlFor="comment">
+            <Field label={m.commentOptional} htmlFor="comment">
               <Input id="comment" value={comment} onChange={(event) => setComment(event.target.value)} />
             </Field>
-            <Field label="Duration (s)" htmlFor="duration">
+            <Field label={m.durationSeconds} htmlFor="duration">
               <div className="relative">
                 <Timer className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input id="duration" inputMode="numeric" value={seconds} onChange={(event) => setManualSeconds(event.target.value)} className="pl-7 tabular-nums" />
@@ -505,32 +510,32 @@ function ExecutionPanel({
 
       <div className="border-t bg-subtle px-5 py-3">
         {locked ? (
-          <p className="text-[13px] text-muted-foreground">This run is completed. Reopen it to change results.</p>
+          <p className="text-[13px] text-muted-foreground">{m.locked}</p>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="passed" size="xl" disabled={pending} onClick={() => choose("passed")} data-testid="result-pass">
-              PASS <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">P</kbd>
+              {m.pass} <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">P</kbd>
             </Button>
             <Button variant="failed" size="xl" disabled={pending} onClick={() => choose("failed")} data-testid="result-fail">
-              FAIL <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">F</kbd>
+              {m.fail} <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">F</kbd>
             </Button>
             <Button variant="blocked" size="xl" disabled={pending} onClick={() => choose("blocked")} data-testid="result-blocked">
-              BLOCKED <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">B</kbd>
+              {m.blocked} <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">B</kbd>
             </Button>
             <Button variant="skipped" size="xl" disabled={pending} onClick={() => choose("skipped")} data-testid="result-skipped">
-              SKIPPED <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">S</kbd>
+              {m.skipped} <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">S</kbd>
             </Button>
             {result && result.status !== "untested" ? (
               <Button variant="ghost" size="sm" className="ml-auto" disabled={pending} onClick={() => record("untested")}>
-                <RotateCcw /> Reset
+                <RotateCcw /> {m.reset}
               </Button>
             ) : null}
           </div>
         )}
         {result?.status === "failed" && result.failureCategory ? (
           <div className="mt-2 flex gap-2 text-xs text-muted-foreground">
-            <Badge variant="failed">{FAILURE_CATEGORY_LABELS[result.failureCategory]}</Badge>
-            {result.severity ? <Badge variant="outline">{SEVERITY_LABELS[result.severity]}</Badge> : null}
+            <Badge variant="failed">{t.enums.failureCategory[result.failureCategory]}</Badge>
+            {result.severity ? <Badge variant="outline">{t.enums.severity[result.severity]}</Badge> : null}
           </div>
         ) : null}
       </div>

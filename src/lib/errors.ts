@@ -1,4 +1,6 @@
 import { ZodError } from "zod";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeFieldErrors, localizeMessage } from "@/lib/i18n/server-messages";
 
 export type AppErrorCode =
   | "bad_request"
@@ -69,14 +71,24 @@ export function toAppError(error: unknown): AppError {
   return new AppError("upstream", "Unexpected server error.");
 }
 
-/** Shapes any thrown error into a JSON Response without leaking internals. */
-export function errorResponse(error: unknown): Response {
+/**
+ * Shapes any thrown error into a JSON Response without leaking internals. With a `locale`, the
+ * message and field errors are translated (English source text is kept for "en" and by default,
+ * which is what machine clients such as runners receive).
+ */
+export function errorResponse(error: unknown, locale: Locale = "en"): Response {
   const appError = toAppError(error);
   if (!(error instanceof AppError) && !(error instanceof ZodError)) {
     console.error("[qa-joo] unhandled error", error);
   }
   return Response.json(
-    { error: { code: appError.code, message: appError.message, details: appError.details ?? null } },
+    {
+      error: {
+        code: appError.code,
+        message: localizeMessage(appError.message, locale),
+        details: localizeDetails(appError.details, locale),
+      },
+    },
     { status: appError.status },
   );
 }
@@ -86,4 +98,12 @@ export function errorMessage(error: unknown): string {
   if (error instanceof ZodError) return error.issues[0]?.message ?? "Validation failed.";
   console.error("[qa-joo] unexpected error", error);
   return "Unexpected error. Check the server logs for details.";
+}
+
+function localizeDetails(details: unknown, locale: Locale): unknown {
+  if (details === undefined || details === null) return null;
+  if (locale === "en" || typeof details !== "object" || Array.isArray(details)) return details;
+  const entries = Object.entries(details as Record<string, unknown>);
+  if (!entries.every(([, value]) => typeof value === "string")) return details;
+  return localizeFieldErrors(details as Record<string, string>, locale);
 }

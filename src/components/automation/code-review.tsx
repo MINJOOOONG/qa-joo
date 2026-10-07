@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { approveAutomationAction, rejectAutomationAction, saveAutomationCodeAction } from "@/app/actions/automation";
 import { lintAutomationCode } from "@/lib/automation/code-lint";
+import { useI18n } from "@/lib/i18n/client";
 
 export function CodeReview({
   automationTestId,
@@ -23,6 +24,8 @@ export function CodeReview({
   filePath: string;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
+  const m = t.automation.codeReview;
   const [code, setCode] = useState(initialCode);
   const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
@@ -36,11 +39,11 @@ export function CodeReview({
     startTransition(async () => {
       const result = await fn();
       if (result.error) toast.error(result.error);
-      else toast.success(result.message ?? "Saved.");
+      else toast.success(result.message ?? m.saved);
     });
 
   const regenerate = async () => {
-    if (dirty && !confirm("Discard your edits and generate a new draft?")) return;
+    if (dirty && !confirm(m.confirmRegenerate)) return;
     setRegenerating(true);
     try {
       const response = await fetch("/api/automation/generate", {
@@ -49,10 +52,10 @@ export function CodeReview({
         body: JSON.stringify({ testCaseId }),
       });
       const body = await response.json();
-      if (!response.ok) toast.error(body?.error?.message ?? "Could not regenerate.");
+      if (!response.ok) toast.error(body?.error?.message ?? m.regenerateFailed);
       else {
         setCode(body.automationTest.code);
-        toast.success("New draft generated.");
+        toast.success(m.regenerated);
         router.refresh();
       }
     } finally {
@@ -65,7 +68,7 @@ export function CodeReview({
       <div className="overflow-hidden rounded-md border">
         <div className="flex items-center justify-between border-b bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300">
           <span className="font-mono">{filePath}</span>
-          <span>{dirty ? "Edited · not saved" : status === "approved" ? "Approved" : "Draft"}</span>
+          <span>{dirty ? m.editedNotSaved : status === "approved" ? t.enums.automationTestStatus.approved : t.enums.automationTestStatus.draft}</span>
         </div>
         <div className="flex max-h-[34rem] overflow-hidden bg-zinc-950">
           <div ref={gutter} className="code-block select-none overflow-hidden py-3 pl-3 pr-2 text-right text-zinc-600" aria-hidden>
@@ -80,7 +83,7 @@ export function CodeReview({
               if (gutter.current) gutter.current.scrollTop = event.currentTarget.scrollTop;
             }}
             spellCheck={false}
-            aria-label="Playwright spec code"
+            aria-label={m.codeLabel}
             data-testid="automation-code"
             className="code-block min-h-[24rem] flex-1 resize-none overflow-auto whitespace-pre bg-transparent py-3 pr-3 text-zinc-100 outline-none"
             rows={Math.min(Math.max(lines + 1, 18), 40)}
@@ -91,7 +94,7 @@ export function CodeReview({
       <div className="space-y-1.5 rounded-md border p-3 text-[13px]" data-testid="lint-report">
         {lint.errors.length === 0 && lint.warnings.length === 0 ? (
           <p className="flex items-center gap-2 text-passed">
-            <Check className="size-4" /> Static checks passed.
+            <Check className="size-4" /> {m.lintPassed}
           </p>
         ) : null}
         {lint.errors.map((message) => (
@@ -113,23 +116,23 @@ export function CodeReview({
           onClick={() => act(() => approveAutomationAction(automationTestId, code))}
           data-testid="approve-automation"
         >
-          <Check /> {status === "approved" && !dirty ? "Approved" : "Approve"}
+          <Check /> {status === "approved" && !dirty ? m.approved : m.approve}
         </Button>
         <Button variant="outline" disabled={pending || !dirty} onClick={() => act(() => saveAutomationCodeAction(automationTestId, code))}>
-          <Save /> Save edits as draft
+          <Save /> {m.saveDraft}
         </Button>
         <Button variant="outline" disabled={pending || regenerating || status === "approved"} onClick={regenerate}>
-          <RefreshCcw className={regenerating ? "animate-spin" : undefined} /> Regenerate
+          <RefreshCcw className={regenerating ? "animate-spin" : undefined} /> {m.regenerate}
         </Button>
         <div className="ml-auto flex items-center gap-2">
-          <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Reason (optional)" className="w-56" aria-label="Rejection reason" />
+          <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder={m.reasonPlaceholder} className="w-56" aria-label={m.reasonLabel} />
           <Button variant="destructive-outline" disabled={pending || status === "rejected"} onClick={() => act(() => rejectAutomationAction(automationTestId, note))}>
-            <X /> Reject
+            <X /> {m.reject}
           </Button>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Approved code runs on your runner against the project&apos;s target URL. Edits move an approved spec back to draft until it is approved again.
+        {m.footnote}
       </p>
     </div>
   );

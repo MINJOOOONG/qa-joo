@@ -6,7 +6,8 @@ import { getServiceContext } from "@/lib/server-context";
 import { recordManualResult } from "@/lib/services/results";
 import { createTestRun, deleteTestRun, setRunStatus } from "@/lib/services/runs";
 import type { TestRun } from "@/lib/domain/types";
-import { formError, type FormState } from "./form-state";
+import { formError } from "./form-error";
+import type { FormState } from "./form-state";
 
 export async function createRunAction(input: unknown): Promise<FormState> {
   let id: string;

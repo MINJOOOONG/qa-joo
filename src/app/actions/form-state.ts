@@ -1,5 +1,7 @@
 import { isAppError, zodFieldErrors, errorMessage } from "@/lib/errors";
 import { ZodError } from "zod";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeFieldErrors, localizeMessage } from "@/lib/i18n/server-messages";
 
 export interface FormState {
   error: string | null;
@@ -11,17 +13,25 @@ export interface FormState {
 
 export const initialFormState: FormState = { error: null, fieldErrors: {} };
 
-export function formError(error: unknown): FormState {
+/**
+ * Shapes a thrown error into form state, translating messages into `locale` (English source text
+ * is returned unchanged for "en"). Server actions use the async `formError` from ./form-error,
+ * which reads the locale from the request; this file stays importable from client components.
+ */
+export function formErrorIn(error: unknown, locale: Locale): FormState {
   if (error instanceof ZodError) {
-    return { error: "Please fix the highlighted fields.", fieldErrors: zodFieldErrors(error) };
+    return {
+      error: localizeMessage("Please fix the highlighted fields.", locale),
+      fieldErrors: localizeFieldErrors(zodFieldErrors(error), locale),
+    };
   }
   if (isAppError(error)) {
     const details = error.details;
     const fieldErrors =
       details && typeof details === "object" && !Array.isArray(details) ? (details as Record<string, string>) : {};
-    return { error: error.message, fieldErrors };
+    return { error: localizeMessage(error.message, locale), fieldErrors: localizeFieldErrors(fieldErrors, locale) };
   }
-  return { error: errorMessage(error), fieldErrors: {} };
+  return { error: localizeMessage(errorMessage(error), locale), fieldErrors: {} };
 }
 
 /** Re-throws Next.js control-flow errors (redirect / notFound) so they are not swallowed. */

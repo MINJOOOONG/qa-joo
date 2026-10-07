@@ -13,7 +13,10 @@ import {
 } from "@/lib/services/cases";
 import { addCasesToRun } from "@/lib/services/runs";
 import { safeRedirectPath } from "@/lib/safe-redirect";
-import { formError, type FormState } from "./form-state";
+import { fmt } from "@/lib/i18n/define";
+import { getI18n } from "@/lib/i18n/server";
+import { formError } from "./form-error";
+import type { FormState } from "./form-state";
 
 function caseFields(formData: FormData) {
   const steps = formData
@@ -102,14 +105,14 @@ export async function reviewManyAction(projectId: string, caseIds: string[], dec
     if (decision === "approve") {
       const count = await approveAllDrafts(ctx, projectId, caseIds.length ? caseIds : undefined);
       revalidatePath("/", "layout");
-      return { error: null, fieldErrors: {}, success: Date.now(), message: `Approved ${count} case(s).` };
+      return { error: null, fieldErrors: {}, success: Date.now(), message: fmt((await getI18n()).t.server.approvedCases, { count }) };
     }
-    if (caseIds.length === 0) return { error: null, fieldErrors: {}, success: Date.now(), message: "Nothing to reject." };
+    if (caseIds.length === 0) return { error: null, fieldErrors: {}, success: Date.now(), message: (await getI18n()).t.server.nothingToReject };
     // Only this project's remaining drafts: cases reviewed elsewhere in the meantime are skipped.
     const drafts = await ctx.repo.listTestCases({ projectId, reviewStatuses: ["draft"], ids: caseIds });
     for (const draft of drafts) await reviewTestCase(ctx, draft.id, "reject");
     revalidatePath("/", "layout");
-    return { error: null, fieldErrors: {}, success: Date.now(), message: `Rejected ${drafts.length} case(s).` };
+    return { error: null, fieldErrors: {}, success: Date.now(), message: fmt((await getI18n()).t.server.rejectedCases, { count: drafts.length }) };
   } catch (error) {
     return formError(error);
   }
@@ -120,11 +123,12 @@ export async function addToRunAction(runId: string, caseIds: string[]): Promise<
     const ctx = await getServiceContext();
     const added = await addCasesToRun(ctx, runId, caseIds);
     revalidatePath("/", "layout");
+    const { t } = await getI18n();
     return {
       error: null,
       fieldErrors: {},
       success: Date.now(),
-      message: added ? `Added to the run.` : "Already part of the run.",
+      message: added ? t.server.addedToRun : t.server.alreadyInRun,
     };
   } catch (error) {
     return formError(error);

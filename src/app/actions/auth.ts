@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/auth";
 import { getConfig } from "@/lib/env";
+import { getLocale } from "@/lib/i18n/server";
+import { localizeMessage } from "@/lib/i18n/server-messages";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export interface SignInState {
@@ -20,13 +22,13 @@ const signInSchema = z.object({
 export async function signIn(_state: SignInState, formData: FormData): Promise<SignInState> {
   if (!getConfig().authEnabled) redirect("/projects");
   const parsed = signInSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  if (!parsed.success) return { error: localizeMessage(parsed.error.issues[0]?.message ?? "Invalid input.", await getLocale()) };
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
-  if (error) return { error: "Invalid email or password." };
+  if (error) return { error: localizeMessage("Invalid email or password.", await getLocale()) };
   redirect(safeRedirectPath(parsed.data.next, "/projects"));
 }
 

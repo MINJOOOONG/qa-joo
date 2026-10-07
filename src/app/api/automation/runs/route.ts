@@ -5,6 +5,7 @@ import { parseJson, readVerifiedRunnerBody } from "@/lib/automation/verify-runne
 import { getConfig } from "@/lib/env";
 import { AppError, errorResponse } from "@/lib/errors";
 import { readJsonBody } from "@/lib/http";
+import { localizedErrorResponse } from "@/lib/i18n/error-response";
 import { getRunnerContext, getServiceContext } from "@/lib/server-context";
 import { createAutomationRun } from "@/lib/services/automation";
 
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     });
     return Response.json({ run }, { status: 201 });
   } catch (error) {
-    return errorResponse(error);
+    // Runners (HMAC-signed) get the English source text; the UI gets its own language.
+    return request.headers.get(SIGNATURE_HEADER) ? errorResponse(error) : localizedErrorResponse(error);
   }
 }

@@ -1,4 +1,4 @@
-import { errorResponse } from "@/lib/errors";
+import { localizedErrorResponse } from "@/lib/i18n/error-response";
 import { getServiceContext } from "@/lib/server-context";
 import { getAutomationRunDetail } from "@/lib/services/automation";
 
@@ -19,6 +19,6 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/auto
       })),
     });
   } catch (error) {
-    return errorResponse(error);
+    return localizedErrorResponse(error);
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { heuristicFailureAnalysis, type FailureContext } from "./failure-analyzer";
+import { failureSystemPrompt, heuristicFailureAnalysis, type FailureContext } from "./failure-analyzer";
+import { systemPromptFor } from "./test-case-generator";
 
 const base: FailureContext = {
   testCase: { caseKey: "RF-TC-009", title: "Handle API 500", steps: ["Submit"], expectedResult: "Error shown", type: "error" },
@@ -40,5 +41,30 @@ describe("heuristic failure analysis", () => {
 
   it("falls back to unknown", () => {
     expect(analyze("something odd").category).toBe("unknown");
+  });
+
+  it("writes the triage in the UI language (Korean by default, English on request)", () => {
+    const error = "Error: response status 500 Internal Server Error";
+    const ko = analyze(error);
+    expect(ko.probableCause).toMatch(/[가-힣]/);
+    expect(ko.suggestedNextStep).toMatch(/[가-힣]/);
+    expect(ko.suggestedRegressionCases[0].title).toBe('"Handle API 500" 중 API 500 오류 처리');
+    const en = heuristicFailureAnalysis({ ...base, errorMessage: error, locale: "en" });
+    expect(en.probableCause).toBe("The application returned a server error (5xx) during the flow; the frontend may not handle it.");
+    expect(en.suggestedRegressionCases.map((c) => c.title)).toEqual([
+      'Handle API 500 gracefully during "Handle API 500"',
+      'Retry "Handle API 500" after upstream recovery',
+    ]);
+    expect(heuristicFailureAnalysis({ ...base, errorMessage: "net::ERR_CONNECTION_REFUSED", locale: "en" }).suggestedRegressionCases[0].title).toBe(
+      "Show a friendly error when handle api 500 cannot reach the service",
+    );
+  });
+
+  it("asks the model for the UI language", () => {
+    expect(failureSystemPrompt("ko")).toContain("in Korean");
+    expect(failureSystemPrompt("en")).not.toContain("Korean");
+    expect(systemPromptFor("ko")).toContain("in Korean");
+    expect(systemPromptFor("en")).not.toContain("Korean");
+    expect(systemPromptFor("en")).toContain('"Negative Cases"');
   });
 });

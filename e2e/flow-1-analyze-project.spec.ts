@@ -11,7 +11,7 @@ test("Flow 1: new project → analyze → review AI drafts → approve all → c
   await expect(drafts.first()).toBeVisible({ timeout: 30_000 });
   expect(await drafts.count()).toBeGreaterThanOrEqual(6);
   await expect(page.getByText("AI DRAFT").first()).toBeVisible();
-  await expect(page.getByRole("cell", { name: /Campaign URL에 잘못된 형식의 URL 입력 시 거부/ })).toBeVisible();
+  await expect(page.getByRole("cell", { name: /Reject malformed URL in Campaign URL/ })).toBeVisible();
 
   // Drafts are not usable in runs until approved.
   await page.getByTestId("approve-all").click();

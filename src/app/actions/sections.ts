@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { getServiceContext } from "@/lib/server-context";
 import { createSection, deleteSection, renameSection } from "@/lib/services/sections";
-import { formError, type FormState } from "./form-state";
+import { getI18n } from "@/lib/i18n/server";
+import { formError } from "./form-error";
+import type { FormState } from "./form-state";
 
 export async function createSectionAction(projectId: string, _state: FormState, formData: FormData): Promise<FormState> {
   try {
@@ -13,7 +15,7 @@ export async function createSectionAction(projectId: string, _state: FormState, 
     return formError(error);
   }
   revalidatePath("/", "layout");
-  return { error: null, fieldErrors: {}, success: Date.now(), message: "Section added." };
+  return { error: null, fieldErrors: {}, success: Date.now(), message: (await getI18n()).t.server.sectionAdded };
 }
 
 export async function renameSectionAction(sectionId: string, name: string): Promise<FormState> {

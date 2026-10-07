@@ -6,9 +6,14 @@ import { EnvironmentBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
 import { formatPercent } from "@/lib/domain/run-stats";
 import { getServiceContext } from "@/lib/server-context";
-import { formatRelative } from "@/lib/utils";
+import { fmt } from "@/lib/i18n/define";
+import { formatRelative } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Projects" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.projects.list.title };
+}
 
 function hostOf(url: string): string {
   try {
@@ -35,7 +40,8 @@ function coverFor(key: string): string {
 }
 
 export default async function ProjectsPage() {
-  const ctx = await getServiceContext();
+  const [ctx, { t, locale }] = await Promise.all([getServiceContext(), getI18n()]);
+  const l = t.projects.list;
   const [projects, cases] = await Promise.all([ctx.repo.listProjects(), ctx.repo.listTestCases()]);
   const stats = new Map<string, { approved: number; drafts: number; automated: number }>();
   for (const c of cases) {
@@ -49,12 +55,12 @@ export default async function ProjectsPage() {
   return (
     <>
       <PageHeader
-        title="Projects"
-        description="Each project connects a live application and/or a GitHub repository to a test suite."
+        title={l.title}
+        description={l.description}
         actions={
           <Button asChild>
             <Link href="/projects/new">
-              <Plus /> New Project
+              <Plus /> {l.newProject}
             </Link>
           </Button>
         }
@@ -63,12 +69,12 @@ export default async function ProjectsPage() {
         {projects.length === 0 ? (
           <EmptyState
             icon={FolderKanban}
-            title="No projects yet"
-            description="Create a project, paste your application URL, and let QA JOO draft the first test cases."
+            title={l.emptyTitle}
+            description={l.emptyDescription}
             action={
               <Button asChild>
                 <Link href="/projects/new">
-                  <Plus /> New Project
+                  <Plus /> {l.newProject}
                 </Link>
               </Button>
             }
@@ -93,7 +99,7 @@ export default async function ProjectsPage() {
                         href={`/projects/${project.key}/review`}
                         className="absolute right-3 top-3 z-10 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-white"
                       >
-                        AI 초안 {s.drafts}
+                        {fmt(l.draftsChip, { count: s.drafts })}
                       </Link>
                     ) : null}
                   </div>
@@ -123,16 +129,16 @@ export default async function ProjectsPage() {
                     </div>
                     <dl className="mt-auto grid grid-cols-3 gap-2 border-t pt-3 text-center">
                       <div>
-                        <dt className="text-[11px] text-muted-foreground">Cases</dt>
+                        <dt className="text-[11px] text-muted-foreground">{l.cases}</dt>
                         <dd className="font-semibold tabular-nums">{s.approved}</dd>
                       </div>
                       <div>
-                        <dt className="text-[11px] text-muted-foreground">Automated</dt>
+                        <dt className="text-[11px] text-muted-foreground">{l.automated}</dt>
                         <dd className="font-semibold tabular-nums">{formatPercent(s.approved ? s.automated / s.approved : null)}</dd>
                       </div>
                       <div>
-                        <dt className="text-[11px] text-muted-foreground">Analyzed</dt>
-                        <dd className="truncate text-xs font-medium">{formatRelative(project.lastAnalysis?.analyzedAt)}</dd>
+                        <dt className="text-[11px] text-muted-foreground">{l.analyzed}</dt>
+                        <dd className="truncate text-xs font-medium">{formatRelative(project.lastAnalysis?.analyzedAt, locale)}</dd>
                       </div>
                     </dl>
                   </div>

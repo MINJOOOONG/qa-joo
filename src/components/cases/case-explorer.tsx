@@ -10,7 +10,10 @@ import { flattenSections, sectionPaths, sectionSubtree } from "@/lib/domain/sect
 import type { Project, Section } from "@/lib/domain/types";
 import { getCaseDetail } from "@/lib/services/cases";
 import type { ServiceContext } from "@/lib/services/context";
-import { cn, formatRelative } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatRelative } from "@/lib/i18n/format";
+import { fmt } from "@/lib/i18n/define";
+import { getI18n } from "@/lib/i18n/server";
 import { CaseDetailView } from "./case-detail-view";
 import { CaseDrawer } from "./case-drawer";
 import { CaseFilters } from "./case-filters";
@@ -30,6 +33,8 @@ export async function CaseExplorer({
   defaultProjectId?: string | null;
 }) {
   const query = parseCaseQuery(searchParams);
+  const { t, locale } = await getI18n();
+  const e = t.cases.explorer;
   const projects = await ctx.repo.listProjects();
   const projectById = new Map(projects.map((p) => [p.id, p]));
   let project: Project | null = fixedProject ?? null;
@@ -79,10 +84,10 @@ export async function CaseExplorer({
           sections={flattenSections(sections).map((node) => ({ value: node.section.id, label: `${"— ".repeat(node.depth)}${node.section.name}` }))}
         />
         <div className="flex items-center gap-2">
-          <span className="text-xs tabular-nums text-muted-foreground">{cases.length} case(s)</span>
+          <span className="text-xs tabular-nums text-muted-foreground">{fmt(e.count, { count: cases.length })}</span>
           <Button size="sm" asChild>
             <Link href={newCaseHref}>
-              <Plus /> New Case
+              <Plus /> {e.newCase}
             </Link>
           </Button>
         </div>
@@ -91,12 +96,12 @@ export async function CaseExplorer({
       {cases.length === 0 ? (
         <EmptyState
           icon={ListChecks}
-          title="No test cases match"
-          description={project ? "Adjust the filters, add a case manually, or analyze the project to draft cases with AI." : "Pick a project or add your first case."}
+          title={e.emptyTitle}
+          description={project ? e.emptyWithProject : e.emptyNoProject}
           action={
             project ? (
               <Button size="sm" variant="outline" asChild>
-                <Link href={`/projects/${project.key}/review?autostart=1`}>Analyze {project.name}</Link>
+                <Link href={`/projects/${project.key}/review?autostart=1`}>{fmt(e.analyze, { name: project.name })}</Link>
               </Button>
             ) : null
           }
@@ -106,15 +111,15 @@ export async function CaseExplorer({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24">ID</TableHead>
-                <TableHead>Title</TableHead>
-                {!fixedProject ? <TableHead>Project</TableHead> : null}
-                <TableHead>Section</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Automation</TableHead>
-                <TableHead>Last Result</TableHead>
-                <TableHead>Updated</TableHead>
+                <TableHead className="w-24">{e.columns.id}</TableHead>
+                <TableHead>{e.columns.title}</TableHead>
+                {!fixedProject ? <TableHead>{e.columns.project}</TableHead> : null}
+                <TableHead>{e.columns.section}</TableHead>
+                <TableHead>{e.columns.type}</TableHead>
+                <TableHead>{e.columns.priority}</TableHead>
+                <TableHead>{e.columns.automation}</TableHead>
+                <TableHead>{e.columns.lastResult}</TableHead>
+                <TableHead>{e.columns.updated}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -131,7 +136,7 @@ export async function CaseExplorer({
                       <Link href={href} scroll={false} className="flex items-center gap-2 hover:underline" data-testid="case-row-link">
                         <span className="truncate">{testCase.title}</span>
                         {testCase.source === "ai_generated" ? <AiBadge className="shrink-0" /> : null}
-                        {testCase.reviewStatus === "draft" ? <Badge variant="warning" className="shrink-0">Draft</Badge> : null}
+                        {testCase.reviewStatus === "draft" ? <Badge variant="warning" className="shrink-0">{e.draft}</Badge> : null}
                       </Link>
                     </TableCell>
                     {!fixedProject ? (
@@ -152,7 +157,7 @@ export async function CaseExplorer({
                     <TableCell>
                       <ResultBadge status={testCase.lastResult} />
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{formatRelative(testCase.updatedAt)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatRelative(testCase.updatedAt, locale)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -166,7 +171,7 @@ export async function CaseExplorer({
           <CaseDetailView detail={detail} activeRuns={activeRuns} returnTo={closeHref} />
           <div className="mt-6 border-t pt-3 text-xs">
             <Link href={`/cases/${detail.testCase.id}`} className="text-primary hover:underline">
-              Open full page →
+              {e.openFullPage}
             </Link>
           </div>
         </CaseDrawer>

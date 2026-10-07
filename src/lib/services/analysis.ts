@@ -2,6 +2,7 @@ import { AppError, errorMessage, notFound } from "@/lib/errors";
 import { generateCasesRequestSchema } from "@/lib/domain/schemas";
 import type { AnalysisSummary, TestCase } from "@/lib/domain/types";
 import type { ProjectAnalysis } from "@/lib/analyzer/types";
+import type { Locale } from "@/lib/i18n/config";
 import type { GenerationInput, GenerationOutput } from "@/lib/ai/test-case-generator";
 import { createTestCase } from "./cases";
 import { logActivity } from "./activity";
@@ -26,6 +27,8 @@ export async function runProjectAnalysis(
   deps: AnalysisDeps,
   raw: unknown,
   mode: "analyze" | "gaps" = "analyze",
+  /** UI language at generation time (callers read it from the request); drafts are written in it. */
+  locale: Locale = "ko",
 ): Promise<AnalyzeResult> {
   const input = generateCasesRequestSchema.parse(raw);
   const project = await ctx.repo.getProject(input.projectId);
@@ -67,6 +70,7 @@ export async function runProjectAnalysis(
     focus: input.focus ?? null,
     maxCases: input.maxCases,
     mode,
+    locale,
   });
 
   const created: TestCase[] = [];

@@ -66,4 +66,13 @@ describe("heuristic test case generation", () => {
     expect(picked).toHaveLength(10);
     expect(unhappyShare(picked)).toBeGreaterThanOrEqual(0.4);
   });
+
+  it("writes cases in English for the English UI, with the same coverage and order rules", () => {
+    const english = heuristicTestCases("Sandbox", analysis, 14, "en");
+    expect(english.length).toBe(cases.length);
+    expect(english.some((c) => /[가-힣]/.test(`${c.title} ${c.steps.join(" ")} ${c.expectedResult}`))).toBe(false);
+    for (const type of UNHAPPY_CASE_TYPES) expect(english.some((c) => c.type === type)).toBe(true);
+    expect(english.find((c) => c.type === "security" && /localhost/i.test(c.title))?.steps.join(" ")).toContain("169.254.169.254");
+    expect(english.map((c) => c.type)).toEqual(cases.map((c) => c.type));
+  });
 });

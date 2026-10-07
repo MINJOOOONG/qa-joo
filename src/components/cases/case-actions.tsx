@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { NativeSelect } from "@/components/ui/input";
+import { fmt } from "@/lib/i18n/define";
+import { useI18n } from "@/lib/i18n/client";
 import { addToRunAction, deleteCaseAction, duplicateCaseAction } from "@/app/actions/cases";
 
 export interface RunOption {
@@ -33,6 +35,8 @@ export function CaseActions({
   returnTo: string;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
+  const a = t.cases.actions;
   const [pending, startTransition] = useTransition();
   const [runDialog, setRunDialog] = useState(false);
   const [runId, setRunId] = useState(activeRuns[0]?.id ?? "");
@@ -48,12 +52,12 @@ export function CaseActions({
       });
       const body = await response.json();
       if (!response.ok) {
-        toast.error(body?.error?.message ?? "Could not generate the Playwright draft.");
+        toast.error(body?.error?.message ?? a.generateFailed);
         return;
       }
       router.push(`/automation/tests/${body.automationTest.id}`);
     } catch {
-      toast.error("Network error while generating the Playwright draft.");
+      toast.error(a.generateNetworkError);
     } finally {
       setGenerating(false);
     }
@@ -63,7 +67,7 @@ export function CaseActions({
     <div className="flex flex-wrap items-center gap-1.5">
       <Button variant="outline" size="sm" asChild>
         <Link href={`/cases/${caseId}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
-          <Pencil /> Edit
+          <Pencil /> {a.edit}
         </Link>
       </Button>
       <Button
@@ -77,20 +81,20 @@ export function CaseActions({
           })
         }
       >
-        <Copy /> Duplicate
+        <Copy /> {a.duplicate}
       </Button>
-      <Button variant="outline" size="sm" disabled={!isApproved} onClick={() => setRunDialog(true)} title={isApproved ? undefined : "Approve the AI draft first"}>
-        <ListPlus /> Add to Test Run
+      <Button variant="outline" size="sm" disabled={!isApproved} onClick={() => setRunDialog(true)} title={isApproved ? undefined : a.approveFirst}>
+        <ListPlus /> {a.addToRun}
       </Button>
       {automationTestId ? (
         <Button variant="outline" size="sm" asChild>
           <Link href={`/automation/tests/${automationTestId}`}>
-            <Bot /> View Automation
+            <Bot /> {a.viewAutomation}
           </Link>
         </Button>
       ) : (
         <Button variant="outline" size="sm" onClick={generateAutomation} disabled={generating || !isApproved} data-testid="generate-automation">
-          <Bot /> {generating ? "Generating…" : "Generate Automation"}
+          <Bot /> {generating ? a.generating : a.generateAutomation}
         </Button>
       )}
       <Button
@@ -98,24 +102,24 @@ export function CaseActions({
         size="sm"
         disabled={pending}
         onClick={() => {
-          if (!confirm(`Delete ${caseKey}? Its results in every run are removed too.`)) return;
+          if (!confirm(fmt(a.confirmDelete, { key: caseKey }))) return;
           startTransition(async () => {
             const result = await deleteCaseAction(caseId, returnTo);
             if (result?.error) toast.error(result.error);
           });
         }}
       >
-        <Trash2 /> Delete
+        <Trash2 /> {a.delete}
       </Button>
 
       <Dialog open={runDialog} onOpenChange={setRunDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add {caseKey} to a test run</DialogTitle>
-            <DialogDescription>Only active runs of this project are listed.</DialogDescription>
+            <DialogTitle>{fmt(a.dialogTitle, { key: caseKey })}</DialogTitle>
+            <DialogDescription>{a.dialogDescription}</DialogDescription>
           </DialogHeader>
           {activeRuns.length ? (
-            <NativeSelect value={runId} onChange={(event) => setRunId(event.target.value)} aria-label="Test run">
+            <NativeSelect value={runId} onChange={(event) => setRunId(event.target.value)} aria-label={a.runLabel}>
               {activeRuns.map((run) => (
                 <option key={run.id} value={run.id}>
                   {run.name}
@@ -123,11 +127,11 @@ export function CaseActions({
               ))}
             </NativeSelect>
           ) : (
-            <p className="text-[13px] text-muted-foreground">No active runs yet.</p>
+            <p className="text-[13px] text-muted-foreground">{a.noActiveRuns}</p>
           )}
           <DialogFooter>
             <Button variant="outline" asChild>
-              <Link href={`/runs/new?project=${projectId}&cases=${caseId}`}>Create new run</Link>
+              <Link href={`/runs/new?project=${projectId}&cases=${caseId}`}>{a.createRun}</Link>
             </Button>
             <Button
               disabled={!runId || pending}
@@ -136,13 +140,13 @@ export function CaseActions({
                   const result = await addToRunAction(runId, [caseId]);
                   if (result.error) toast.error(result.error);
                   else {
-                    toast.success(result.message ?? "Added.");
+                    toast.success(result.message ?? a.added);
                     setRunDialog(false);
                   }
                 })
               }
             >
-              Add to run
+              {a.addToRunButton}
             </Button>
           </DialogFooter>
         </DialogContent>

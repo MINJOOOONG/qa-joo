@@ -7,35 +7,40 @@ import { Kpi, KpiStrip } from "@/components/common/kpi";
 import { PageHeader, SectionTitle } from "@/components/common/page-header";
 import { RunsTable } from "@/components/runs/runs-table";
 import { Button } from "@/components/ui/button";
-import { FAILURE_CATEGORY_LABELS } from "@/lib/domain/constants";
 import { formatPercent } from "@/lib/domain/run-stats";
 import { getPreferences, scopePreferences } from "@/lib/preferences";
 import { getServiceContext } from "@/lib/server-context";
 import { getDashboard } from "@/lib/services/dashboard";
-import { formatRelative } from "@/lib/utils";
+import { fmt } from "@/lib/i18n/define";
+import { formatRelative } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Dashboard" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.dashboard.title };
+}
 
 export default async function DashboardPage() {
-  const [ctx, storedPreferences] = await Promise.all([getServiceContext(), getPreferences()]);
+  const [ctx, storedPreferences, { t, locale }] = await Promise.all([getServiceContext(), getPreferences(), getI18n()]);
+  const l = t.dashboard;
   const preferences = await scopePreferences(ctx.repo, storedPreferences);
   const data = await getDashboard(ctx, preferences.projectId);
-  const scope = preferences.projectId ? data.projects[0]?.name : "All projects";
+  const scope = preferences.projectId ? data.projects[0]?.name : l.allProjects;
   const projectKeys = new Map(data.projects.map((p) => [p.id, p.key]));
 
   if (data.projectCount === 0 && !preferences.projectId) {
     return (
       <>
-        <PageHeader title="Dashboard" />
+        <PageHeader title={l.title} />
         <div className="p-6">
           <EmptyState
             icon={FolderKanban}
-            title="Welcome to QA JOO"
-            description="Create your first project: paste an application URL or a public GitHub repository and QA JOO drafts the first test cases for you to review."
+            title={l.welcomeTitle}
+            description={l.welcomeDescription}
             action={
               <Button asChild>
                 <Link href="/projects/new">
-                  <Plus /> New Project
+                  <Plus /> {l.newProject}
                 </Link>
               </Button>
             }
@@ -47,42 +52,42 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard" description={`Quality overview · ${scope ?? "All projects"}`} />
+      <PageHeader title={l.title} description={fmt(l.overview, { scope: scope ?? l.allProjects })} />
       <div className="space-y-6 p-6">
         <KpiStrip>
-          <Kpi label="Projects" value={data.projectCount} />
-          <Kpi label="Test Cases" value={data.caseCount} hint="approved" />
-          <Kpi label="Active Runs" value={data.activeRunCount} />
-          <Kpi label="Pass Rate" value={formatPercent(data.passRate)} tone="passed" hint="latest result per case" />
-          <Kpi label="Failed" value={data.failedCount} tone={data.failedCount ? "failed" : "default"} hint="cases failing now" />
-          <Kpi label="Automated Coverage" value={formatPercent(data.automationCoverage)} hint={`${data.automatedCount} automated`} />
+          <Kpi label={l.kpi.projects} value={data.projectCount} />
+          <Kpi label={l.kpi.cases} value={data.caseCount} hint={l.kpi.approved} />
+          <Kpi label={l.kpi.activeRuns} value={data.activeRunCount} />
+          <Kpi label={l.kpi.passRate} value={formatPercent(data.passRate)} tone="passed" hint={l.kpi.passRateHint} />
+          <Kpi label={l.kpi.failed} value={data.failedCount} tone={data.failedCount ? "failed" : "default"} hint={l.kpi.failedHint} />
+          <Kpi label={l.kpi.coverage} value={formatPercent(data.automationCoverage)} hint={fmt(l.kpi.automatedCount, { count: data.automatedCount })} />
         </KpiStrip>
 
         <section>
           <SectionTitle
             actions={
               <Link href="/runs" className="text-xs text-primary hover:underline">
-                All runs
+                {l.allRuns}
               </Link>
             }
           >
-            Recent Test Runs
+            {l.recentRuns}
           </SectionTitle>
           {data.recentRuns.length ? (
             <RunsTable runs={data.recentRuns} />
           ) : (
             <p className="rounded-md border border-dashed p-6 text-center text-[13px] text-muted-foreground">
-              No test runs yet. <Link href="/runs/new" className="text-primary hover:underline">Create one</Link>.
+              {l.noRuns} <Link href="/runs/new" className="text-primary hover:underline">{l.createOne}</Link>.
             </p>
           )}
         </section>
 
         <div className="grid gap-6 xl:grid-cols-3">
           <section className="xl:col-span-1">
-            <SectionTitle>Recent Failures</SectionTitle>
+            <SectionTitle>{l.recentFailures}</SectionTitle>
             <div className="rounded-md border">
               {data.recentFailures.length === 0 ? (
-                <p className="p-6 text-center text-[13px] text-muted-foreground">No failing cases. </p>
+                <p className="p-6 text-center text-[13px] text-muted-foreground">{l.noFailures}</p>
               ) : (
                 <ul className="divide-y">
                   {data.recentFailures.map(({ testCase, run, result }) => (
@@ -99,8 +104,8 @@ export default async function DashboardPage() {
                             {run.name}
                           </Link>
                         ) : null}
-                        {result.failureCategory ? ` · ${FAILURE_CATEGORY_LABELS[result.failureCategory]}` : ""}
-                        {result.mode === "automated" ? " · Automated" : ""} · {formatRelative(result.executedAt)}
+                        {result.failureCategory ? ` · ${t.enums.failureCategory[result.failureCategory]}` : ""}
+                        {result.mode === "automated" ? ` · ${l.automated}` : ""} · {formatRelative(result.executedAt, locale)}
                       </div>
                     </li>
                   ))}
@@ -113,17 +118,17 @@ export default async function DashboardPage() {
             <SectionTitle
               actions={
                 <Link href="/automation" className="text-xs text-primary hover:underline">
-                  Automation
+                  {l.automation}
                 </Link>
               }
             >
-              Automation Status
+              {l.automationStatus}
             </SectionTitle>
             <div className="rounded-md border">
               {data.automationRuns.length === 0 ? (
                 <div className="flex flex-col items-center gap-1 p-6 text-center text-[13px] text-muted-foreground">
                   <Bot className="size-5" />
-                  No automation runs yet.
+                  {l.noAutomationRuns}
                 </div>
               ) : (
                 <ul className="divide-y">
@@ -134,12 +139,12 @@ export default async function DashboardPage() {
                       <li key={run.id} className="flex items-center gap-2 px-3 py-2 text-[13px]">
                         <AutomationRunStatusBadge status={run.status} />
                         <Link href={`/automation/runs/${run.id}`} className="truncate hover:underline">
-                          {project?.key ?? ""} · {run.testCaseIds.length} spec(s)
+                          {project?.key ?? ""} · {fmt(l.specs, { count: run.testCaseIds.length })}
                         </Link>
                         <span className="ml-auto text-xs tabular-nums">
                           <span className="text-passed">{passed}</span> / <span className="text-failed">{failed}</span>
                         </span>
-                        <span className="w-14 text-right text-xs text-muted-foreground">{formatRelative(run.createdAt)}</span>
+                        <span className="w-14 text-right text-xs text-muted-foreground">{formatRelative(run.createdAt, locale)}</span>
                       </li>
                     );
                   })}
@@ -152,11 +157,11 @@ export default async function DashboardPage() {
             <SectionTitle
               actions={
                 <Link href="/activity" className="text-xs text-primary hover:underline">
-                  All activity
+                  {l.allActivity}
                 </Link>
               }
             >
-              Recent Activity
+              {l.recentActivity}
             </SectionTitle>
             <div className="rounded-md border px-3">
               <ActivityList activities={data.activities.slice(0, 10)} projectKeys={projectKeys} />
@@ -164,7 +169,7 @@ export default async function DashboardPage() {
           </section>
         </div>
         <p className="text-xs text-muted-foreground">
-          Legend: <ResultBadge status="passed" /> <ResultBadge status="failed" /> <ResultBadge status="blocked" />{" "}
+          {l.legend} <ResultBadge status="passed" /> <ResultBadge status="failed" /> <ResultBadge status="blocked" />{" "}
           <ResultBadge status="skipped" /> <ResultBadge status="untested" />
         </p>
       </div>

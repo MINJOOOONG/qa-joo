@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FolderKanban, ListChecks, PlayCircle, Search } from "lucide-react";
+import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 interface SearchHit {
@@ -17,6 +18,7 @@ const ICONS = { project: FolderKanban, case: ListChecks, run: PlayCircle } as co
 
 export function GlobalSearch() {
   const router = useRouter();
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -80,8 +82,8 @@ export function GlobalSearch() {
           if (event.key === "Enter" && visibleHits[active]) go(visibleHits[active]);
           if (event.key === "Escape") inputRef.current?.blur();
         }}
-        placeholder="Search projects, cases, runs…"
-        aria-label="Global search"
+        placeholder={t.common.globalSearch.placeholder}
+        aria-label={t.common.globalSearch.ariaLabel}
         className="h-8 w-full rounded-md border border-input bg-subtle pl-8 pr-12 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
       />
       <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border bg-background px-1 font-mono text-[10px] text-muted-foreground">

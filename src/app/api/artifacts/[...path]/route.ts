@@ -1,5 +1,5 @@
 import { loadArtifact } from "@/lib/automation/artifacts";
-import { errorResponse } from "@/lib/errors";
+import { localizedErrorResponse } from "@/lib/i18n/error-response";
 import { getServiceContext } from "@/lib/server-context";
 
 /** GET /api/artifacts/<runId>/<file> — serves stored screenshots, traces and logs to signed-in users. */
@@ -20,6 +20,6 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/arti
       },
     });
   } catch (error) {
-    return errorResponse(error);
+    return localizedErrorResponse(error);
   }
 }

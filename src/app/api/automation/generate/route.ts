@@ -3,9 +3,9 @@ import { getLlmProvider } from "@/lib/ai/provider";
 import { parsePage } from "@/lib/analyzer/html";
 import { generateAutomationRequestSchema } from "@/lib/domain/schemas";
 import { getConfig } from "@/lib/env";
-import { errorResponse } from "@/lib/errors";
 import { readJsonBody } from "@/lib/http";
 import { safeFetch } from "@/lib/security/safe-fetch";
+import { localizedErrorResponse } from "@/lib/i18n/error-response";
 import { getServiceContext } from "@/lib/server-context";
 import { generateAutomationForCase } from "@/lib/services/automation";
 
@@ -35,6 +35,6 @@ export async function POST(request: Request) {
     );
     return Response.json(result, { status: 201 });
   } catch (error) {
-    return errorResponse(error);
+    return localizedErrorResponse(error);
   }
 }

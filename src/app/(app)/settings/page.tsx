@@ -1,9 +1,14 @@
 import { CheckCircle2, CircleAlert, CircleMinus } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { getConfig } from "@/lib/env";
+import { fmt } from "@/lib/i18n/define";
+import { getI18n } from "@/lib/i18n/server";
 import { getServiceContext } from "@/lib/server-context";
 
-export const metadata = { title: "Settings" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.settings.title };
+}
 
 type State = "ok" | "warn" | "off";
 
@@ -32,66 +37,67 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-const yes = (value: unknown) => (value ? "Configured" : "Not set");
-
 export default async function SettingsPage() {
   await getServiceContext();
   const config = getConfig();
+  const { t } = await getI18n();
+  const l = t.settings;
+  const yes = (value: unknown) => (value ? l.configured : l.notSet);
   return (
     <>
-      <PageHeader title="Settings" description="Read-only view of this deployment's configuration. Values come from environment variables; secrets are never displayed." />
+      <PageHeader title={l.title} description={l.description} />
       <div className="max-w-4xl space-y-6 p-6">
-        <Card title="Workspace">
+        <Card title={l.workspace.title}>
           <Row
-            label="Data store"
-            value={config.dataStore === "supabase" ? "Supabase (PostgreSQL)" : "In-memory store"}
+            label={l.workspace.dataStore}
+            value={config.dataStore === "supabase" ? l.workspace.supabase : l.workspace.memory}
             state={config.dataStore === "supabase" ? "ok" : "warn"}
             hint={
               config.dataStore === "supabase"
                 ? config.supabase.url
-                : `Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to persist in Postgres. Local data file: ${config.dataFile ?? ".data/qa-joo.json (default)"}`
+                : fmt(l.workspace.dataStoreHint, { file: config.dataFile ?? l.workspace.defaultDataFile })
             }
           />
-          <Row label="Authentication" value={config.authEnabled ? "Supabase Auth (sign-in required)" : "Disabled (single local user)"} state={config.authEnabled ? "ok" : "warn"} />
-          <Row label="Demo mode" value={config.demoMode ? "On (ReviewForge demo seeded)" : "Off"} state={config.demoMode ? "warn" : "off"} />
+          <Row label={l.workspace.auth} value={config.authEnabled ? l.workspace.authOn : l.workspace.authOff} state={config.authEnabled ? "ok" : "warn"} />
+          <Row label={l.workspace.demo} value={config.demoMode ? l.workspace.demoOn : l.workspace.demoOff} state={config.demoMode ? "warn" : "off"} />
         </Card>
 
-        <Card title="AI provider">
+        <Card title={l.ai.title}>
           <Row
-            label="Provider"
-            value={config.ai.provider === "heuristic" ? "Rule-based heuristic (no AI)" : config.ai.provider}
+            label={l.ai.provider}
+            value={config.ai.provider === "heuristic" ? l.ai.heuristic : config.ai.provider}
             state={config.ai.provider === "heuristic" ? "warn" : "ok"}
-            hint="Set AI_PROVIDER=anthropic|openai with ANTHROPIC_API_KEY or OPENAI_API_KEY. Every AI output is saved as a draft or suggestion for human review."
+            hint={l.ai.providerHint}
           />
-          <Row label="Anthropic" value={`${yes(config.ai.anthropicKey)} · model ${config.ai.anthropicModel}`} state={config.ai.anthropicKey ? "ok" : "off"} />
-          <Row label="OpenAI" value={`${yes(config.ai.openaiKey)} · model ${config.ai.openaiModel}`} state={config.ai.openaiKey ? "ok" : "off"} />
+          <Row label="Anthropic" value={fmt(l.model, { status: yes(config.ai.anthropicKey), model: config.ai.anthropicModel })} state={config.ai.anthropicKey ? "ok" : "off"} />
+          <Row label="OpenAI" value={fmt(l.model, { status: yes(config.ai.openaiKey), model: config.ai.openaiModel })} state={config.ai.openaiKey ? "ok" : "off"} />
         </Card>
 
-        <Card title="Project analyzer">
+        <Card title={l.analyzer.title}>
           <Row
-            label="Private network targets"
-            value={config.analyzer.allowPrivateTargets ? "Allowed" : "Blocked (SSRF protection)"}
+            label={l.analyzer.privateTargets}
+            value={config.analyzer.allowPrivateTargets ? l.analyzer.allowed : l.analyzer.blocked}
             state={config.analyzer.allowPrivateTargets ? "warn" : "ok"}
-            hint={config.analyzer.allowPrivateTargets ? "ALLOW_PRIVATE_NETWORK_TARGETS=true is meant for local development only." : "localhost, private, link-local and metadata addresses are rejected, including after redirects and DNS resolution."}
+            hint={config.analyzer.allowPrivateTargets ? l.analyzer.allowedHint : l.analyzer.blockedHint}
           />
-          <Row label="Browser rendering" value={config.analyzer.browserMode ? "Playwright (ANALYZER_BROWSER=true)" : "HTTP only"} state={config.analyzer.browserMode ? "ok" : "off"} />
-          <Row label="GitHub token" value={yes(config.analyzer.githubToken)} state={config.analyzer.githubToken ? "ok" : "off"} hint="Optional; raises GitHub API rate limits. Only public repositories are ever read." />
+          <Row label={l.analyzer.browser} value={config.analyzer.browserMode ? l.analyzer.browserOn : l.analyzer.browserOff} state={config.analyzer.browserMode ? "ok" : "off"} />
+          <Row label={l.analyzer.githubToken} value={yes(config.analyzer.githubToken)} state={config.analyzer.githubToken ? "ok" : "off"} hint={l.analyzer.githubTokenHint} />
         </Card>
 
-        <Card title="Automation runner">
-          <Row label="Runner mode" value={config.runner.mode} state="ok" hint="AUTOMATION_RUNNER=local | github | external" />
+        <Card title={l.runner.title}>
+          <Row label={l.runner.mode} value={config.runner.mode} state="ok" hint="AUTOMATION_RUNNER=local | github | external" />
           <Row
-            label="Callback secret"
+            label={l.runner.callbackSecret}
             value={yes(config.runner.callbackSecret)}
             state={config.runner.callbackSecret ? "ok" : "warn"}
-            hint="RUNNER_CALLBACK_SECRET signs every runner request (HMAC-SHA256 with timestamp)."
+            hint={l.runner.callbackSecretHint}
           />
-          <Row label="Public URL for runners" value={config.publicUrl} state="ok" />
+          <Row label={l.runner.publicUrl} value={config.publicUrl} state="ok" />
           <Row
-            label="GitHub dispatch"
-            value={config.runner.github.repository ? `${config.runner.github.repository} · ${config.runner.github.workflow} @ ${config.runner.github.ref}` : "Not configured"}
+            label={l.runner.githubDispatch}
+            value={config.runner.github.repository ? `${config.runner.github.repository} · ${config.runner.github.workflow} @ ${config.runner.github.ref}` : l.runner.notConfigured}
             state={config.runner.github.repository && config.runner.github.token ? "ok" : "off"}
-            hint="GITHUB_DISPATCH_TOKEN needs actions:write on the repository that contains qa-automation.yml."
+            hint={l.runner.githubDispatchHint}
           />
         </Card>
       </div>

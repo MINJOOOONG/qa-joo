@@ -4,11 +4,16 @@ import { CreateRunForm } from "@/components/runs/create-run-form";
 import { flattenSections, sectionPaths } from "@/lib/domain/sections";
 import { getPreferences } from "@/lib/preferences";
 import { getServiceContext } from "@/lib/server-context";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Create Test Run" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.runs.newPage.title };
+}
 
 export default async function NewRunPage({ searchParams }: PageProps<"/runs/new">) {
-  const [ctx, preferences, params] = await Promise.all([getServiceContext(), getPreferences(), searchParams]);
+  const [ctx, preferences, params, { t }] = await Promise.all([getServiceContext(), getPreferences(), searchParams, getI18n()]);
+  const m = t.runs.newPage;
   const projects = await ctx.repo.listProjects();
   const requested = typeof params.project === "string" ? params.project : null;
   const project =
@@ -18,12 +23,12 @@ export default async function NewRunPage({ searchParams }: PageProps<"/runs/new"
   if (!project) {
     return (
       <>
-        <PageHeader title="Create Test Run" />
+        <PageHeader title={m.title} />
         <p className="p-6 text-[13px]">
           <Link href="/projects/new" className="text-primary hover:underline">
-            Create a project
-          </Link>{" "}
-          first.
+            {m.createProject}
+          </Link>
+          {m.createProjectFirst}
         </p>
       </>
     );
@@ -36,7 +41,7 @@ export default async function NewRunPage({ searchParams }: PageProps<"/runs/new"
   const preselected = typeof params.cases === "string" ? params.cases.split(",").filter(Boolean) : [];
   return (
     <>
-      <PageHeader eyebrow="Test Runs" title="Create Test Run" description="Choose the build and environment, then select which approved cases to execute." />
+      <PageHeader eyebrow={t.runs.list.title} title={m.title} description={m.description} />
       <div className="p-6">
         <CreateRunForm
           key={project.id}

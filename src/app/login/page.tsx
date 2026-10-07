@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { FlaskConical } from "lucide-react";
 import { getConfig } from "@/lib/env";
+import { getI18n } from "@/lib/i18n/server";
 import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (!getConfig().authEnabled) redirect("/projects");
   const { next } = await searchParams;
+  const { t } = await getI18n();
   return (
     <div className="flex min-h-screen items-center justify-center bg-subtle px-4">
       <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-sm">
@@ -17,9 +19,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </span>
           <span className="text-lg font-semibold tracking-tight">QA JOO</span>
         </div>
-        <h1 className="text-base font-semibold">Sign in</h1>
+        <h1 className="text-base font-semibold">{t.auth.title}</h1>
         <p className="mb-4 text-[13px] text-muted-foreground">
-          Use an account created in your Supabase project (Authentication → Users).
+          {t.auth.hint}
         </p>
         <LoginForm next={typeof next === "string" ? next : undefined} />
       </div>

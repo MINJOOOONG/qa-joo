@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { errorResponse } from "@/lib/errors";
+import { localizedErrorResponse } from "@/lib/i18n/error-response";
 import { getServiceContext } from "@/lib/server-context";
 
 export async function GET(request: NextRequest) {
@@ -39,6 +39,6 @@ export async function GET(request: NextRequest) {
     ];
     return Response.json({ hits });
   } catch (error) {
-    return errorResponse(error);
+    return localizedErrorResponse(error);
   }
 }

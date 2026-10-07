@@ -6,7 +6,9 @@ import { revalidatePath } from "next/cache";
 import { PROJECT_COOKIE } from "@/lib/preferences";
 import { getServiceContext } from "@/lib/server-context";
 import { createProject, deleteProject, updateProject } from "@/lib/services/projects";
-import { formError, type FormState } from "./form-state";
+import { getI18n } from "@/lib/i18n/server";
+import { formError } from "./form-error";
+import type { FormState } from "./form-state";
 
 function projectFields(formData: FormData) {
   return {
@@ -50,7 +52,7 @@ export async function updateProjectAction(projectId: string, _state: FormState, 
     return formError(error);
   }
   revalidatePath("/", "layout");
-  return { error: null, fieldErrors: {}, success: Date.now(), message: "Project saved." };
+  return { error: null, fieldErrors: {}, success: Date.now(), message: (await getI18n()).t.server.projectSaved };
 }
 
 export async function deleteProjectAction(projectId: string, _state: FormState, formData: FormData): Promise<FormState> {

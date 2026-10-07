@@ -8,13 +8,9 @@ import { PriorityLabel, TypeBadge, AutomationBadge } from "@/components/common/b
 import { createRunAction } from "@/app/actions/runs";
 import {
   AUTOMATION_STATUSES,
-  AUTOMATION_STATUS_LABELS,
   CASE_TYPES,
-  CASE_TYPE_LABELS,
   ENVIRONMENTS,
-  ENVIRONMENT_LABELS,
   PRIORITIES,
-  PRIORITY_LABELS,
   type AutomationStatus,
   type CaseType,
   type Environment,
@@ -23,6 +19,8 @@ import {
 import { sectionSubtree } from "@/lib/domain/sections";
 import type { Section } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
+import { fmt } from "@/lib/i18n/define";
+import { useI18n } from "@/lib/i18n/client";
 
 export interface CaseLite {
   id: string;
@@ -74,8 +72,10 @@ export function CreateRunForm({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useI18n();
+  const m = t.runs.create;
   const project = projects.find((p) => p.id === projectId)!;
-  const [name, setName] = useState(`${project.name} Regression`);
+  const [name, setName] = useState(fmt(m.defaultName, { project: project.name }));
   const [environment, setEnvironment] = useState<Environment>(defaultEnvironment);
   const [build, setBuild] = useState("");
   const [description, setDescription] = useState("");
@@ -122,10 +122,10 @@ export function CreateRunForm({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="flex flex-col gap-4">
-        <Field label="Run Name" htmlFor="name" required error={errors.name}>
+        <Field label={m.runName} htmlFor="name" required error={errors.name}>
           <Input id="name" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={Boolean(errors.name)} />
         </Field>
-        <Field label="Project" htmlFor="project">
+        <Field label={m.project} htmlFor="project">
           <NativeSelect id="project" value={projectId} onChange={(event) => router.replace(`${pathname}?project=${event.target.value}`)}>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
@@ -135,43 +135,43 @@ export function CreateRunForm({
           </NativeSelect>
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Environment" htmlFor="environment" required>
+          <Field label={m.environment} htmlFor="environment" required>
             <NativeSelect id="environment" value={environment} onChange={(event) => setEnvironment(event.target.value as Environment)}>
               {ENVIRONMENTS.map((env) => (
                 <option key={env} value={env}>
-                  {ENVIRONMENT_LABELS[env]}
+                  {t.enums.environment[env]}
                 </option>
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Build / Version" htmlFor="build" error={errors.build}>
+          <Field label={m.build} htmlFor="build" error={errors.build}>
             <Input id="build" value={build} onChange={(event) => setBuild(event.target.value)} placeholder="v0.8.2" className="font-mono" />
           </Field>
         </div>
-        <Field label="Description" htmlFor="description">
+        <Field label={m.description} htmlFor="description">
           <Textarea id="description" rows={3} value={description} onChange={(event) => setDescription(event.target.value)} />
         </Field>
         <FieldError message={error} />
         <div>
           <Button onClick={submit} disabled={pending || matching.length === 0} size="lg" data-testid="create-run-submit">
-            {pending ? "Creating…" : `Create Test Run with ${matching.length} case(s)`}
+            {pending ? m.creating : fmt(m.submit, { count: matching.length })}
           </Button>
         </div>
       </div>
 
       <div className="flex flex-col gap-3 rounded-md border p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold">Test case selection</h2>
+          <h2 className="text-[13px] font-semibold">{m.selection}</h2>
           <span className="text-xs tabular-nums text-muted-foreground" data-testid="selection-count">
-            {matching.length} of {cases.length} approved case(s)
+            {fmt(m.selectionCount, { matching: matching.length, total: cases.length })}
           </span>
         </div>
-        <div className="flex gap-1" role="radiogroup" aria-label="Selection mode">
+        <div className="flex gap-1" role="radiogroup" aria-label={m.selectionMode}>
           {(
             [
-              ["all", "All cases"],
-              ["filter", "By section / type / priority / automation"],
-              ["manual", "Pick cases"],
+              ["all", m.modeAll],
+              ["filter", m.modeFilter],
+              ["manual", m.modeManual],
             ] as const
           ).map(([value, label]) => (
             <Chip key={value} active={mode === value} onClick={() => setMode(value)}>
@@ -184,7 +184,7 @@ export function CreateRunForm({
           <div className="space-y-3 text-[13px]">
             {sections.length ? (
               <div className="space-y-1">
-                <div className="text-xs font-medium text-muted-foreground">Sections (includes sub-sections)</div>
+                <div className="text-xs font-medium text-muted-foreground">{m.sections}</div>
                 <div className="flex flex-wrap gap-1">
                   {sections.map((node) => (
                     <Chip key={node.section.id} active={sectionIds.includes(node.section.id)} onClick={() => setSectionIds(toggle(sectionIds, node.section.id))}>
@@ -196,31 +196,31 @@ export function CreateRunForm({
               </div>
             ) : null}
             <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">Type</div>
+              <div className="text-xs font-medium text-muted-foreground">{m.type}</div>
               <div className="flex flex-wrap gap-1">
                 {CASE_TYPES.map((type) => (
                   <Chip key={type} active={types.includes(type)} onClick={() => setTypes(toggle(types, type))}>
-                    {CASE_TYPE_LABELS[type]}
+                    {t.enums.caseType[type]}
                   </Chip>
                 ))}
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">Priority</div>
+              <div className="text-xs font-medium text-muted-foreground">{m.priority}</div>
               <div className="flex flex-wrap gap-1">
                 {PRIORITIES.map((priority) => (
                   <Chip key={priority} active={priorities.includes(priority)} onClick={() => setPriorities(toggle(priorities, priority))}>
-                    {PRIORITY_LABELS[priority]}
+                    {t.enums.priority[priority]}
                   </Chip>
                 ))}
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">Automation status</div>
+              <div className="text-xs font-medium text-muted-foreground">{m.automationStatus}</div>
               <div className="flex flex-wrap gap-1">
                 {AUTOMATION_STATUSES.map((status) => (
                   <Chip key={status} active={automation.includes(status)} onClick={() => setAutomation(toggle(automation, status))}>
-                    {AUTOMATION_STATUS_LABELS[status]}
+                    {t.enums.automationStatus[status]}
                   </Chip>
                 ))}
               </div>
@@ -235,13 +235,13 @@ export function CreateRunForm({
                 <tr key={c.id} className="border-b last:border-0">
                   {mode === "manual" ? (
                     <td className="w-8 px-2 py-1.5">
-                      <input type="checkbox" aria-label={`Include ${c.caseKey}`} checked={manual.includes(c.id)} onChange={() => setManual(toggle(manual, c.id))} />
+                      <input type="checkbox" aria-label={fmt(m.include, { key: c.caseKey })} checked={manual.includes(c.id)} onChange={() => setManual(toggle(manual, c.id))} />
                     </td>
                   ) : null}
                   <td className="w-24 px-2 font-mono text-xs text-muted-foreground">{c.caseKey}</td>
                   <td className="px-2 py-1.5">
                     <div className="truncate">{c.title}</div>
-                    <div className="truncate text-[11px] text-muted-foreground">{c.sectionPath ?? "Unsectioned"}</div>
+                    <div className="truncate text-[11px] text-muted-foreground">{c.sectionPath ?? m.unsectioned}</div>
                   </td>
                   <td className="px-2">
                     <TypeBadge type={c.type} />
@@ -256,7 +256,7 @@ export function CreateRunForm({
               ))}
             </tbody>
           </table>
-          {cases.length === 0 ? <p className="p-4 text-center text-[13px] text-muted-foreground">This project has no approved cases yet.</p> : null}
+          {cases.length === 0 ? <p className="p-4 text-center text-[13px] text-muted-foreground">{m.noCases}</p> : null}
         </div>
         <FieldError message={errors.selection ?? errors["selection.caseIds"]} />
       </div>

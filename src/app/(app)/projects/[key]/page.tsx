@@ -10,7 +10,9 @@ import { formatPercent } from "@/lib/domain/run-stats";
 import { loadProject } from "@/lib/loaders";
 import { getProjectOverview } from "@/lib/services/projects";
 import { listRunSummaries } from "@/lib/services/runs";
-import { formatRelative } from "@/lib/utils";
+import { fmt } from "@/lib/i18n/define";
+import { formatRelative } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function ProjectOverviewPage({ params }: PageProps<"/projects/[key]">) {
   const { key } = await params;
@@ -21,35 +23,37 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
     ctx.repo.listActivities({ projectId: project.id, limit: 12 }),
   ]);
   const analysis = project.lastAnalysis;
+  const { t, locale } = await getI18n();
+  const l = t.projects.overview;
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-center gap-2">
         <Button asChild>
           <Link href={`/projects/${project.key}/review?autostart=1`}>
-            <ScanSearch /> Analyze Project
+            <ScanSearch /> {l.analyzeProject}
           </Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href={`/projects/${project.key}/review?mode=gaps`}>
-            <Sparkles /> Generate Test Cases
+            <Sparkles /> {l.generateCases}
           </Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href={`/runs/new?project=${project.id}`}>
-            <ListPlus /> Create Test Run
+            <ListPlus /> {l.createRun}
           </Link>
         </Button>
         <RunAutomationButton projectId={project.id} automatedCount={overview.automatedCount} />
       </div>
 
       <KpiStrip>
-        <Kpi label="Test Cases" value={overview.caseCount} hint={overview.draftCount ? `${overview.draftCount} AI drafts waiting` : "approved"} />
-        <Kpi label="Automation Coverage" value={formatPercent(overview.automationCoverage)} hint={`${overview.automatedCount} automated`} />
-        <Kpi label="Latest Pass Rate" value={formatPercent(overview.latestRun?.passRate ?? null)} tone="passed" hint={overview.latestRun?.name ?? "no runs yet"} />
-        <Kpi label="Latest Progress" value={formatPercent(overview.latestRun?.progress ?? null)} />
-        <Kpi label="Active Runs" value={overview.activeRuns} />
-        <Kpi label="Last Run" value={<span className="text-base">{formatRelative(overview.latestRun?.updatedAt)}</span>} />
+        <Kpi label={l.kpiCases} value={overview.caseCount} hint={overview.draftCount ? fmt(l.draftsWaiting, { count: overview.draftCount }) : l.approved} />
+        <Kpi label={l.kpiCoverage} value={formatPercent(overview.automationCoverage)} hint={fmt(l.automatedCount, { count: overview.automatedCount })} />
+        <Kpi label={l.kpiPassRate} value={formatPercent(overview.latestRun?.passRate ?? null)} tone="passed" hint={overview.latestRun?.name ?? l.noRunsYet} />
+        <Kpi label={l.kpiProgress} value={formatPercent(overview.latestRun?.progress ?? null)} />
+        <Kpi label={l.kpiActiveRuns} value={overview.activeRuns} />
+        <Kpi label={l.kpiLastRun} value={<span className="text-base">{formatRelative(overview.latestRun?.updatedAt, locale)}</span>} />
       </KpiStrip>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
@@ -58,25 +62,25 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
             <SectionTitle
               actions={
                 <Link href={`/projects/${project.key}/runs`} className="text-xs text-primary hover:underline">
-                  All runs
+                  {l.allRuns}
                 </Link>
               }
             >
-              Test Runs
+              {l.testRuns}
             </SectionTitle>
             {runs.length ? (
               <RunsTable runs={runs.slice(0, 5)} showProject={false} />
             ) : (
               <div className="rounded-md border border-dashed p-6 text-center text-[13px] text-muted-foreground">
-                No runs yet.{" "}
+                {l.noRuns}{" "}
                 <Link href={`/runs/new?project=${project.id}`} className="text-primary hover:underline">
-                  Create the first test run
+                  {l.createFirstRun}
                 </Link>
               </div>
             )}
           </section>
           <section>
-            <SectionTitle>Recent Activity</SectionTitle>
+            <SectionTitle>{l.recentActivity}</SectionTitle>
             <div className="rounded-md border px-3">
               <ActivityList activities={activities} />
             </div>
@@ -86,27 +90,27 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
         <aside className="space-y-4">
           <section className="rounded-md border">
             <div className="flex items-center justify-between border-b px-3 py-2">
-              <h2 className="text-[13px] font-semibold">Connected sources</h2>
+              <h2 className="text-[13px] font-semibold">{l.connectedSources}</h2>
               <Link href={`/projects/${project.key}/settings`} className="text-xs text-primary hover:underline">
-                Edit
+                {l.edit}
               </Link>
             </div>
             <dl className="space-y-2 px-3 py-3 text-[13px]">
               <div>
-                <dt className="text-xs text-muted-foreground">Application URL</dt>
-                <dd className="truncate">{project.appUrl ?? "Not connected"}</dd>
+                <dt className="text-xs text-muted-foreground">{l.appUrl}</dt>
+                <dd className="truncate">{project.appUrl ?? l.notConnected}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Repository URL</dt>
-                <dd className="truncate">{project.repoUrl ?? "Not connected"}</dd>
+                <dt className="text-xs text-muted-foreground">{l.repoUrl}</dt>
+                <dd className="truncate">{project.repoUrl ?? l.notConnected}</dd>
               </div>
             </dl>
           </section>
 
           <section className="rounded-md border">
             <div className="flex items-center justify-between border-b px-3 py-2">
-              <h2 className="text-[13px] font-semibold">Last analysis</h2>
-              <span className="text-xs text-muted-foreground">{formatRelative(analysis?.analyzedAt)}</span>
+              <h2 className="text-[13px] font-semibold">{l.lastAnalysis}</h2>
+              <span className="text-xs text-muted-foreground">{formatRelative(analysis?.analyzedAt, locale)}</span>
             </div>
             {analysis ? (
               <div className="space-y-3 px-3 py-3 text-[13px]">
@@ -128,10 +132,10 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {(
                     [
-                      ["Pages", analysis.signals.pages],
-                      ["Forms", analysis.signals.forms],
-                      ["Routes", analysis.signals.routes],
-                      ["APIs", analysis.signals.apiEndpoints],
+                      [l.signals.pages, analysis.signals.pages],
+                      [l.signals.forms, analysis.signals.forms],
+                      [l.signals.routes, analysis.signals.routes],
+                      [l.signals.apis, analysis.signals.apiEndpoints],
                     ] as const
                   ).map(([label, value]) => (
                     <div key={label} className="rounded bg-subtle py-1.5">
@@ -141,7 +145,7 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {analysis.generatedCount} draft case(s) by {analysis.provider}
+                  {fmt(l.generatedBy, { count: analysis.generatedCount, provider: analysis.provider })}
                   {analysis.model ? ` (${analysis.model})` : ""}.
                 </p>
                 {analysis.warnings.length ? (
@@ -154,10 +158,10 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
               </div>
             ) : (
               <div className="space-y-2 px-3 py-4 text-[13px] text-muted-foreground">
-                <p>This project has not been analyzed yet.</p>
+                <p>{l.notAnalyzed}</p>
                 <Button size="sm" asChild>
                   <Link href={`/projects/${project.key}/review?autostart=1`}>
-                    <PlayCircle /> Analyze now
+                    <PlayCircle /> {l.analyzeNow}
                   </Link>
                 </Button>
               </div>

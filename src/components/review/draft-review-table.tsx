@@ -8,6 +8,8 @@ import { PriorityLabel, TypeBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
 import { reviewManyAction } from "@/app/actions/cases";
 import { ReviewButtons } from "@/components/cases/review-buttons";
+import { fmt } from "@/lib/i18n/define";
+import { useI18n } from "@/lib/i18n/client";
 import type { CaseType, Priority } from "@/lib/domain/constants";
 
 export interface DraftRow {
@@ -24,6 +26,8 @@ export interface DraftRow {
 }
 
 export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId: string; projectKey: string; drafts: DraftRow[] }) {
+  const { t } = useI18n();
+  const tt = t.review.table;
   const [rawSelected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -43,7 +47,7 @@ export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId:
       const result = await reviewManyAction(projectId, ids, decision);
       if (result.error) toast.error(result.error);
       else {
-        toast.success(result.message ?? "Done.");
+        toast.success(result.message ?? tt.done);
         setSelected(new Set());
       }
     });
@@ -52,13 +56,13 @@ export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId:
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="passed" size="sm" disabled={pending} onClick={() => decide([], "approve")} data-testid="approve-all">
-          <Check /> Approve All ({drafts.length})
+          <Check /> {fmt(tt.approveAll, { count: drafts.length })}
         </Button>
         <Button variant="outline" size="sm" disabled={pending || selected.size === 0} onClick={() => decide(Array.from(selected), "approve")}>
-          Approve selected ({selected.size})
+          {fmt(tt.approveSelected, { count: selected.size })}
         </Button>
         <Button variant="outline" size="sm" disabled={pending || selected.size === 0} onClick={() => decide(Array.from(selected), "reject")}>
-          <X /> Reject selected
+          <X /> {tt.rejectSelected}
         </Button>
       </div>
       <div className="overflow-hidden rounded-md border">
@@ -68,18 +72,18 @@ export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId:
               <th className="w-8 px-3 py-2">
                 <input
                   type="checkbox"
-                  aria-label="Select all drafts"
+                  aria-label={tt.selectAll}
                   checked={allSelected}
                   onChange={() => setSelected(allSelected ? new Set() : new Set(drafts.map((d) => d.id)))}
                 />
               </th>
               <th className="w-6" />
-              <th className="w-24 px-2 py-2 text-left font-medium">ID</th>
-              <th className="px-2 py-2 text-left font-medium">Title</th>
-              <th className="px-2 py-2 text-left font-medium">Section</th>
-              <th className="px-2 py-2 text-left font-medium">Type</th>
-              <th className="px-2 py-2 text-left font-medium">Priority</th>
-              <th className="w-28 px-3 py-2 text-right font-medium">Review</th>
+              <th className="w-24 px-2 py-2 text-left font-medium">{tt.columns.id}</th>
+              <th className="px-2 py-2 text-left font-medium">{tt.columns.title}</th>
+              <th className="px-2 py-2 text-left font-medium">{tt.columns.section}</th>
+              <th className="px-2 py-2 text-left font-medium">{tt.columns.type}</th>
+              <th className="px-2 py-2 text-left font-medium">{tt.columns.priority}</th>
+              <th className="w-28 px-3 py-2 text-right font-medium">{tt.columns.review}</th>
             </tr>
           </thead>
           <tbody>
@@ -89,10 +93,10 @@ export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId:
                 <Fragment key={draft.id}>
                   <tr className="border-b hover:bg-zinc-50" data-testid="draft-row">
                     <td className="px-3 py-1.5">
-                      <input type="checkbox" aria-label={`Select ${draft.caseKey}`} checked={selected.has(draft.id)} onChange={() => setSelected(toggle(selected, draft.id))} />
+                      <input type="checkbox" aria-label={fmt(tt.select, { key: draft.caseKey })} checked={selected.has(draft.id)} onChange={() => setSelected(toggle(selected, draft.id))} />
                     </td>
                     <td>
-                      <button type="button" aria-label={isOpen ? "Collapse" : "Expand"} onClick={() => setExpanded(toggle(expanded, draft.id))} className="rounded p-0.5 text-muted-foreground hover:bg-muted">
+                      <button type="button" aria-label={isOpen ? tt.collapse : tt.expand} onClick={() => setExpanded(toggle(expanded, draft.id))} className="rounded p-0.5 text-muted-foreground hover:bg-muted">
                         {isOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                       </button>
                     </td>
@@ -111,7 +115,7 @@ export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId:
                     </td>
                     <td className="px-3">
                       <div className="flex justify-end gap-1">
-                        <Button size="icon-sm" variant="ghost" asChild aria-label={`Edit ${draft.caseKey}`}>
+                        <Button size="icon-sm" variant="ghost" asChild aria-label={fmt(tt.edit, { key: draft.caseKey })}>
                           <Link href={`/cases/${draft.id}/edit?returnTo=${encodeURIComponent(`/projects/${projectKey}/review`)}`}>
                             <Pencil />
                           </Link>
@@ -127,7 +131,7 @@ export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId:
                           <div className="space-y-2">
                             {draft.preconditions ? (
                               <p>
-                                <span className="text-xs font-medium text-muted-foreground">Preconditions: </span>
+                                <span className="text-xs font-medium text-muted-foreground">{tt.preconditions}</span>
                                 {draft.preconditions}
                               </p>
                             ) : null}
@@ -139,12 +143,12 @@ export function DraftReviewTable({ projectId, projectKey, drafts }: { projectId:
                           </div>
                           <div className="space-y-2">
                             <p>
-                              <span className="text-xs font-medium text-muted-foreground">Expected: </span>
+                              <span className="text-xs font-medium text-muted-foreground">{tt.expected}</span>
                               {draft.expectedResult}
                             </p>
                             {draft.rationale ? (
                               <p className="text-xs text-violet-800">
-                                <span className="font-medium">AI SUGGESTION · why:</span> {draft.rationale}
+                                <span className="font-medium">{tt.why}</span> {draft.rationale}
                               </p>
                             ) : null}
                           </div>

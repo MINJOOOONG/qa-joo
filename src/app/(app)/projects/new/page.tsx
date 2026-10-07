@@ -1,18 +1,22 @@
 import { PageHeader } from "@/components/common/page-header";
 import { ProjectForm } from "@/components/projects/project-form";
 import { createProjectAction } from "@/app/actions/projects";
+import { getI18n } from "@/lib/i18n/server";
 import { getPreferences } from "@/lib/preferences";
 
-export const metadata = { title: "New Project" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.projects.new.title };
+}
 
 export default async function NewProjectPage() {
-  const preferences = await getPreferences();
+  const [preferences, { t }] = await Promise.all([getPreferences(), getI18n()]);
   return (
     <>
       <PageHeader
-        eyebrow="Projects"
-        title="New Project"
-        description="Paste the URL of the app you want to test. QA JOO will analyze it and draft test cases for your review."
+        eyebrow={t.projects.new.eyebrow}
+        title={t.projects.new.title}
+        description={t.projects.new.description}
       />
       <div className="p-6">
         <ProjectForm mode="create" action={createProjectAction} defaults={{ environment: preferences.environment }} />

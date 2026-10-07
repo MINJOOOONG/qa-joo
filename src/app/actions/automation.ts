@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { getServiceContext } from "@/lib/server-context";
 import { approveAutomation, cancelAutomationRun, rejectAutomation, saveAutomationCode } from "@/lib/services/automation";
-import { formError, type FormState } from "./form-state";
+import { fmt } from "@/lib/i18n/define";
+import { getI18n } from "@/lib/i18n/server";
+import { formError } from "./form-error";
+import type { FormState } from "./form-state";
 
 const ok = (message: string): FormState => ({ error: null, fieldErrors: {}, success: Date.now(), message });
 
@@ -14,7 +17,7 @@ export async function saveAutomationCodeAction(id: string, code: string): Promis
     return formError(error);
   }
   revalidatePath("/", "layout");
-  return ok("Draft saved. Approve it to make the case Automated.");
+  return ok((await getI18n()).t.server.automationDraftSaved);
 }
 
 export async function approveAutomationAction(id: string, code: string): Promise<FormState> {
@@ -24,7 +27,7 @@ export async function approveAutomationAction(id: string, code: string): Promise
     return formError(error);
   }
   revalidatePath("/", "layout");
-  return ok("Approved. The case is now Automated.");
+  return ok((await getI18n()).t.server.automationApproved);
 }
 
 export async function rejectAutomationAction(id: string, note: string): Promise<FormState> {
@@ -34,7 +37,7 @@ export async function rejectAutomationAction(id: string, note: string): Promise<
     return formError(error);
   }
   revalidatePath("/", "layout");
-  return ok("Draft rejected.");
+  return ok((await getI18n()).t.server.automationRejected);
 }
 
 export async function cancelAutomationRunAction(id: string): Promise<FormState> {
@@ -44,7 +47,7 @@ export async function cancelAutomationRunAction(id: string): Promise<FormState> 
     return formError(error);
   }
   revalidatePath("/", "layout");
-  return ok("Run cancelled.");
+  return ok((await getI18n()).t.server.automationRunCancelled);
 }
 
 export async function addSuggestedCasesAction(resultId: string, indexes: number[]): Promise<FormState> {
@@ -52,7 +55,7 @@ export async function addSuggestedCasesAction(resultId: string, indexes: number[
     const { addSuggestedRegressionCases } = await import("@/lib/services/automation");
     const created = await addSuggestedRegressionCases(await getServiceContext(), resultId, indexes);
     revalidatePath("/", "layout");
-    return ok(`Added ${created.length} AI draft case(s) for review.`);
+    return ok(fmt((await getI18n()).t.server.suggestedCasesAdded, { count: created.length }));
   } catch (error) {
     return formError(error);
   }
