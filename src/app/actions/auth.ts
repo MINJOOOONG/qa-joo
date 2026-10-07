@@ -18,7 +18,7 @@ const signInSchema = z.object({
 
 
 export async function signIn(_state: SignInState, formData: FormData): Promise<SignInState> {
-  if (!getConfig().authEnabled) redirect("/dashboard");
+  if (!getConfig().authEnabled) redirect("/projects");
   const parsed = signInSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   const supabase = await createSupabaseServerClient();
@@ -27,7 +27,7 @@ export async function signIn(_state: SignInState, formData: FormData): Promise<S
     password: parsed.data.password,
   });
   if (error) return { error: "Invalid email or password." };
-  redirect(safeRedirectPath(parsed.data.next, "/dashboard"));
+  redirect(safeRedirectPath(parsed.data.next, "/projects"));
 }
 
 export async function signOut(): Promise<void> {

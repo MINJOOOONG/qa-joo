@@ -2,7 +2,8 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { Check, ChevronsUpDown, LogOut, Plus, Server, UserRound } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { FlaskConical, LogOut, Settings, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,93 +13,57 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { setCurrentEnvironment, setCurrentProject } from "@/app/actions/preferences";
-import { ENVIRONMENTS, ENVIRONMENT_LABELS, type Environment } from "@/lib/domain/constants";
 import type { CurrentUser } from "@/lib/domain/types";
+import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./global-search";
 
-interface ProjectOption {
-  id: string;
-  key: string;
-  name: string;
-}
+/** Primary navigation: everything else (cases, runs, automation…) lives inside a project. */
+const NAV = [{ href: "/projects", label: "Projects" }] as const;
 
 export function Topbar({
-  projects,
-  currentProjectId,
-  environment,
   user,
   canSignOut,
   signOutAction,
+  workspaceLabel,
+  aiLabel,
 }: {
-  projects: ProjectOption[];
-  currentProjectId: string | null;
-  environment: Environment;
   user: CurrentUser;
   canSignOut: boolean;
   signOutAction: () => Promise<void>;
+  workspaceLabel: string;
+  aiLabel: string;
 }) {
-  const [pending, startTransition] = useTransition();
-  const current = projects.find((p) => p.id === currentProjectId) ?? null;
+  const [, startTransition] = useTransition();
+  const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
-      <GlobalSearch />
-      <div className="ml-auto flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="min-w-44 justify-between" data-testid="project-switcher" disabled={pending}>
-              <span className="truncate">
-                {current ? (
-                  <>
-                    <span className="font-mono text-[11px] text-muted-foreground">{current.key}</span> {current.name}
-                  </>
-                ) : (
-                  "All projects"
-                )}
-              </span>
-              <ChevronsUpDown className="text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuLabel>Current project</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => startTransition(() => setCurrentProject(null))}>
-              <Check className={current ? "invisible" : ""} /> All projects
-            </DropdownMenuItem>
-            {projects.map((project) => (
-              <DropdownMenuItem key={project.id} onSelect={() => startTransition(() => setCurrentProject(project.id))}>
-                <Check className={project.id === currentProjectId ? "" : "invisible"} />
-                <span className="font-mono text-[11px] text-muted-foreground">{project.key}</span>
-                <span className="truncate">{project.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/projects/new">
-                <Plus /> New project
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" data-testid="environment-switcher" disabled={pending}>
-              <Server className="text-muted-foreground" />
-              {ENVIRONMENT_LABELS[environment]}
-              <ChevronsUpDown className="text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Default environment</DropdownMenuLabel>
-            {ENVIRONMENTS.map((env) => (
-              <DropdownMenuItem key={env} onSelect={() => startTransition(() => setCurrentEnvironment(env))}>
-                <Check className={env === environment ? "" : "invisible"} /> {ENVIRONMENT_LABELS[env]}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-6 border-b bg-background/95 px-6 backdrop-blur">
+      <Link href="/projects" className="flex items-center gap-2" aria-label="QA JOO home">
+        <span className="flex size-7 items-center justify-center rounded-md bg-primary text-white">
+          <FlaskConical className="size-4" />
+        </span>
+        <span className="text-[15px] font-semibold tracking-tight">QA JOO</span>
+      </Link>
+      <nav className="flex h-full items-center gap-1" aria-label="Primary">
+        {NAV.map(({ href, label }) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative flex h-full items-center px-3 text-sm text-muted-foreground transition-colors hover:text-foreground",
+                active && "font-medium text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary",
+              )}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="ml-auto flex items-center gap-3">
+        <GlobalSearch />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-2" data-testid="user-menu">
@@ -113,6 +78,14 @@ export function Topbar({
               <div className="text-[13px] font-medium text-foreground">{user.name}</div>
               <div className="text-xs">{user.email}</div>
             </DropdownMenuLabel>
+            <DropdownMenuItem disabled>
+              Workspace: {workspaceLabel} · AI: {aiLabel}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/settings">
+                <Settings /> Settings
+              </Link>
+            </DropdownMenuItem>
             {user.isDemo ? (
               <DropdownMenuItem disabled>
                 <UserRound /> Local session (no sign-in required)

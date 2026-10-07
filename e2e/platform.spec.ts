@@ -1,20 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-test("navigation: every primary page renders", async ({ page }) => {
+test("navigation: top bar leads to projects, project tabs lead to every page", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveURL(/\/dashboard/);
-  for (const [label, heading] of [
-    ["Projects", "Projects"],
-    ["Test Cases", "Test Cases"],
-    ["Test Runs", "Test Runs"],
-    ["Automation", "Automation"],
-    ["Activity", "Activity"],
-    ["Settings", "Settings"],
-    ["Dashboard", "Dashboard"],
-  ]) {
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: label }).click();
-    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link")).toHaveCount(1);
+  await page.getByTestId("project-card").filter({ hasText: "ReviewForge" }).getByRole("link", { name: "ReviewForge", exact: true }).click();
+  for (const label of ["Test Cases", "Test Runs", "Automation", "Activity", "Settings", "Overview"]) {
+    await page.getByRole("navigation", { name: "Project" }).getByRole("link", { name: label, exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "Project" }).getByRole("link", { name: label, exact: true })).toHaveAttribute("aria-current", "page");
   }
+  await page.goto("/dashboard");
   await expect(page.getByText("Pass Rate", { exact: true })).toBeVisible();
 });
 

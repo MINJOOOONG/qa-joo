@@ -6,7 +6,7 @@ import { LoginForm } from "./login-form";
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  if (!getConfig().authEnabled) redirect("/dashboard");
+  if (!getConfig().authEnabled) redirect("/projects");
   const { next } = await searchParams;
   return (
     <div className="flex min-h-screen items-center justify-center bg-subtle px-4">
