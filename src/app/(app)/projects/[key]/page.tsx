@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { CheckCircle2, CircleAlert, ListPlus, PlayCircle, ScanSearch, Sparkles } from "lucide-react";
+import { CheckCircle2, CircleAlert, ListPlus, ScanSearch, Sparkles } from "lucide-react";
 import { ActivityList } from "@/components/activity/activity-list";
 import { RunAutomationButton } from "@/components/automation/run-automation-button";
 import { Kpi, KpiStrip } from "@/components/common/kpi";
 import { SectionTitle } from "@/components/common/page-header";
 import { RunsTable } from "@/components/runs/runs-table";
-import { Button } from "@/components/ui/button";
 import { formatPercent } from "@/lib/domain/run-stats";
 import { loadProject } from "@/lib/loaders";
 import { getProjectOverview } from "@/lib/services/projects";
@@ -20,7 +19,7 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
   const [overview, runs, activities] = await Promise.all([
     getProjectOverview(ctx, project),
     listRunSummaries(ctx, { projectId: project.id }),
-    ctx.repo.listActivities({ projectId: project.id, limit: 12 }),
+    ctx.repo.listActivities({ projectId: project.id, limit: 6 }),
   ]);
   const analysis = project.lastAnalysis;
   const { t, locale } = await getI18n();
@@ -28,66 +27,41 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
 
   return (
     <div className="space-y-6 p-6">
-      <section aria-labelledby="steps-title" className="rounded-lg border bg-muted/30 p-4">
-        <h2 id="steps-title" className="mb-3 text-sm font-semibold">{l.steps.title}</h2>
-        <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            {
-              text: l.steps.s1,
-              action: (
-                <Button size="sm" asChild>
-                  <Link href={`/projects/${project.key}/review?autostart=1`}>
-                    <ScanSearch /> {l.analyzeProject}
-                  </Link>
-                </Button>
-              ),
-            },
-            {
-              text: l.steps.s2,
-              action: (
-                <Button size="sm" variant="outline" asChild>
-                  <Link href={`/projects/${project.key}/review?mode=gaps`}>
-                    <Sparkles /> {l.generateCases}
-                  </Link>
-                </Button>
-              ),
-            },
-            {
-              text: l.steps.s3,
-              action: (
-                <Button size="sm" variant="outline" asChild>
-                  <Link href={`/runs/new?project=${project.id}`}>
-                    <ListPlus /> {l.createRun}
-                  </Link>
-                </Button>
-              ),
-            },
-            {
-              text: l.steps.s4,
-              action: (
-                <RunAutomationButton projectId={project.id} automatedCount={overview.automatedCount} label={l.runAutomation} size="sm" />
-              ),
-            },
-          ].map((step, index) => (
-            <li key={index} className="flex flex-col gap-2 rounded-md border bg-card p-3">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                {fmt(l.steps.step, { n: index + 1 })}
+      <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={l.steps.title}>
+        {[
+          { icon: ScanSearch, title: l.analyzeProject, text: l.steps.s1, href: `/projects/${project.key}/review?autostart=1`, primary: true },
+          { icon: Sparkles, title: l.generateCases, text: l.steps.s2, href: `/projects/${project.key}/review?mode=gaps` },
+          { icon: ListPlus, title: l.createRun, text: l.steps.s3, href: `/runs/new?project=${project.id}` },
+        ].map(({ icon: Icon, title, text, href, primary }, index) => (
+          <li key={href}>
+            <Link
+              href={href}
+              className={`flex h-full items-center gap-3 rounded-lg border p-3 transition hover:border-primary hover:shadow-sm ${primary ? "border-primary/40 bg-primary/5" : "bg-card"}`}
+            >
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">{index + 1}</span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <Icon className="size-4 text-primary" /> {title}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">{text}</span>
               </span>
-              <p className="flex-1 text-xs leading-relaxed text-muted-foreground">{step.text}</p>
-              <div>{step.action}</div>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-3 text-xs text-muted-foreground">{l.steps.approveHint}</p>
-      </section>
+            </Link>
+          </li>
+        ))}
+        <li className="flex items-center gap-3 rounded-lg border bg-card p-3">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">4</span>
+          <span className="min-w-0 flex-1">
+            <RunAutomationButton projectId={project.id} automatedCount={overview.automatedCount} label={l.runAutomation} size="sm" />
+            <span className="mt-1 block truncate text-xs text-muted-foreground">{l.steps.s4}</span>
+          </span>
+        </li>
+      </ol>
 
-      <KpiStrip>
+      <KpiStrip columns={4}>
         <Kpi label={l.kpiCases} value={overview.caseCount} hint={overview.draftCount ? fmt(l.draftsWaiting, { count: overview.draftCount }) : l.approved} />
         <Kpi label={l.kpiCoverage} value={formatPercent(overview.automationCoverage)} hint={fmt(l.automatedCount, { count: overview.automatedCount })} />
         <Kpi label={l.kpiPassRate} value={formatPercent(overview.latestRun?.passRate ?? null)} tone="passed" hint={overview.latestRun?.name ?? l.noRunsYet} />
-        <Kpi label={l.kpiProgress} value={formatPercent(overview.latestRun?.progress ?? null)} />
         <Kpi label={l.kpiActiveRuns} value={overview.activeRuns} />
-        <Kpi label={l.kpiLastRun} value={<span className="text-base">{formatRelative(overview.latestRun?.updatedAt, locale)}</span>} />
       </KpiStrip>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
@@ -193,11 +167,6 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
             ) : (
               <div className="space-y-2 px-3 py-4 text-[13px] text-muted-foreground">
                 <p>{l.notAnalyzed}</p>
-                <Button size="sm" asChild>
-                  <Link href={`/projects/${project.key}/review?autostart=1`}>
-                    <PlayCircle /> {l.analyzeNow}
-                  </Link>
-                </Button>
               </div>
             )}
           </section>
