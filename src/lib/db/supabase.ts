@@ -461,7 +461,41 @@ export class SupabaseRepository implements Repository {
       .limit(1)
       .maybeSingle();
     if (error) fail(error, "Read highest case key");
-    return data ? Number(data.case_number) : 0;
+    const { data: project, error: projectError } = await this.db
+      .from("projects")
+      .select("last_case_number")
+      .eq("id", projectId)
+      .maybeSingle();
+    if (projectError) fail(projectError, "Read case key high-water mark");
+    return Math.max(data ? Number(data.case_number) : 0, Number(project?.last_case_number ?? 0));
+  }
+
+  async listDismissedCaseTitles(projectId: string) {
+    if (!isUuid(projectId)) return [];
+    const titles: string[] = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await this.db
+        .from("dismissed_case_titles")
+        .select("normalized_title")
+        .eq("project_id", projectId)
+        .order("normalized_title")
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) fail(error, "List dismissed case titles");
+      if (!data.length) return titles;
+      titles.push(...data.map((row: Row) => String(row.normalized_title)));
+    }
+  }
+
+  async addDismissedCaseTitles(projectId: string, normalizedTitles: string[]) {
+    const titles = Array.from(new Set(normalizedTitles.map((t) => t.slice(0, 300)).filter(Boolean)));
+    if (!titles.length) return;
+    const { error } = await this.db
+      .from("dismissed_case_titles")
+      .upsert(
+        titles.map((normalized_title) => ({ project_id: projectId, normalized_title })),
+        { onConflict: "project_id,normalized_title", ignoreDuplicates: true },
+      );
+    if (error) fail(error, "Remember dismissed case titles");
   }
 
   async createTestCase(input: NewTestCase) {

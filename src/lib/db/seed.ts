@@ -235,7 +235,7 @@ export async function seedDemoWorkspace(
     name: "ReviewForge",
     key: "RF",
     description:
-      "Creator assistant for local experience campaigns: reads a campaign brief, writes the application, and checks the review against the mission.",
+      "지역 체험단 캠페인을 돕는 크리에이터 도우미: 캠페인 안내문을 읽고 신청서를 작성하며, 작성한 리뷰가 미션을 충족하는지 확인합니다.",
     appUrl: options.appUrl,
     repoUrl: options.repoUrl,
     environment: "staging",
@@ -325,7 +325,7 @@ export async function seedDemoWorkspace(
     name: "ReviewForge Smoke v0.8.1",
     environment: "production",
     build: "v0.8.1",
-    description: "Post-deploy smoke check (demo data).",
+    description: "배포 후 스모크 점검 (데모 데이터).",
     selection: { mode: "filter", sectionIds: [], types: ["functional"], priorities: ["high"], automationStatuses: [] },
   });
   const smokeCases = await repo.listRunCases(smoke.id);
@@ -339,7 +339,7 @@ export async function seedDemoWorkspace(
     name: "ReviewForge Release Regression",
     environment: "staging",
     build: "v0.8.2",
-    description: "Full regression before the v0.8.2 release (demo data).",
+    description: "v0.8.2 릴리스 전 전체 회귀 테스트 (데모 데이터).",
     selection: { mode: "all" },
   });
   const verdicts: Array<[string, Record<string, unknown>]> = [

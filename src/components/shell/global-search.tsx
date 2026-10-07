@@ -24,6 +24,7 @@ export function GlobalSearch() {
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [searched, setSearched] = useState("");
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -46,6 +47,7 @@ export function GlobalSearch() {
         if (!response.ok) return;
         const body = (await response.json()) as { hits: SearchHit[] };
         setHits(body.hits);
+        setSearched(term);
         setActive(0);
         setOpen(true);
       } catch {
@@ -67,7 +69,7 @@ export function GlobalSearch() {
   };
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative hidden w-full min-w-0 max-w-md sm:block">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
       <input
         ref={inputRef}
@@ -89,6 +91,11 @@ export function GlobalSearch() {
       <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border bg-background px-1 font-mono text-[10px] text-muted-foreground">
         ⌘K
       </kbd>
+      {open && query.trim().length >= 2 && searched === query.trim() && visibleHits.length === 0 ? (
+        <div className="absolute left-0 right-0 top-9 z-50 rounded-md border bg-popover px-3 py-2 text-[13px] text-muted-foreground shadow-md" role="status">
+          {t.common.globalSearch.noResults}
+        </div>
+      ) : null}
       {open && visibleHits.length > 0 ? (
         <ul className="absolute left-0 right-0 top-9 z-50 max-h-96 overflow-auto rounded-md border bg-popover p-1 shadow-md" role="listbox">
           {visibleHits.map((hit, index) => {

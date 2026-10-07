@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { approveAutomationAction, rejectAutomationAction, saveAutomationCodeAction } from "@/app/actions/automation";
 import { lintAutomationCode } from "@/lib/automation/code-lint";
 import { useI18n } from "@/lib/i18n/client";
+import { localizeMessage } from "@/lib/i18n/server-messages";
 
 export function CodeReview({
   automationTestId,
@@ -24,7 +25,7 @@ export function CodeReview({
   filePath: string;
 }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const m = t.automation.codeReview;
   const [code, setCode] = useState(initialCode);
   const [note, setNote] = useState("");
@@ -99,12 +100,12 @@ export function CodeReview({
         ) : null}
         {lint.errors.map((message) => (
           <p key={message} className="flex items-start gap-2 text-failed">
-            <CircleX className="mt-0.5 size-3.5 shrink-0" /> {message}
+            <CircleX className="mt-0.5 size-3.5 shrink-0" /> {localizeMessage(message, locale)}
           </p>
         ))}
         {lint.warnings.map((message) => (
           <p key={message} className="flex items-start gap-2 text-amber-700">
-            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> {message}
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> {localizeMessage(message, locale)}
           </p>
         ))}
       </div>

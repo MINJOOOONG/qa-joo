@@ -1,7 +1,7 @@
 import { CASE_TYPES, UNHAPPY_CASE_TYPES } from "@/lib/domain/constants";
 import type { ProjectAnalysis } from "@/lib/analyzer/types";
 import { heuristicSiteSummary } from "./site-summary";
-import { balanceCases, dedupeCases, heuristicTestCases, unhappyShare } from "./heuristic-cases";
+import { balanceCases, dedupeCases, heuristicGapCandidates, heuristicTestCases, unhappyShare } from "./heuristic-cases";
 import type { LlmProvider } from "./provider";
 import { generatedCasesSchemaFor, type GeneratedCase } from "./schemas";
 import type { Locale } from "@/lib/i18n/config";
@@ -155,7 +155,12 @@ export function normalizeGeneratedCase(raw: GeneratedCase): GeneratedCase | null
 export async function generateTestCases(input: GenerationInput, provider: LlmProvider | null): Promise<GenerationOutput> {
   const warnings: string[] = [];
   const locale = input.locale ?? "ko";
-  const heuristic = heuristicTestCases(input.projectName, input.analysis, Math.max(input.maxCases, 12), locale);
+  // Gap mode draws from a wider pool (gap-only cases + every rule-based case), so it still adds
+  // genuinely new cases after step 1 created the first batch.
+  const heuristic =
+    input.mode === "gaps"
+      ? heuristicGapCandidates(input.projectName, input.analysis, locale)
+      : heuristicTestCases(input.projectName, input.analysis, Math.max(input.maxCases, 12), locale);
 
   if (!provider) {
     const cases = balanceCases(dedupeCases(heuristic, input.existingTitles), input.maxCases);

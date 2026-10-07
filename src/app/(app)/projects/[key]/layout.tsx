@@ -8,22 +8,22 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
   const { project } = await loadProject(key);
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3 px-6 pb-3 pt-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{project.key}</span>
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 pb-3 pt-4 sm:px-6">
+        <div className="min-w-0 max-w-full">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{project.key}</span>
             <h1 className="truncate text-lg font-semibold tracking-tight">{project.name}</h1>
             <EnvironmentBadge environment={project.environment} />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {project.appUrl ? (
-              <a href={project.appUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-                <ExternalLink className="size-3" /> {project.appUrl}
+              <a href={project.appUrl} target="_blank" rel="noreferrer" className="inline-flex min-w-0 max-w-full items-center gap-1 hover:text-foreground">
+                <ExternalLink className="size-3 shrink-0" /> <span className="truncate">{project.appUrl}</span>
               </a>
             ) : null}
             {project.repoUrl ? (
-              <a href={project.repoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-                <FolderGit2 className="size-3" /> {project.repoUrl.replace("https://github.com/", "")}
+              <a href={project.repoUrl} target="_blank" rel="noreferrer" className="inline-flex min-w-0 max-w-full items-center gap-1 hover:text-foreground">
+                <FolderGit2 className="size-3 shrink-0" /> <span className="truncate">{project.repoUrl.replace("https://github.com/", "")}</span>
               </a>
             ) : null}
           </div>

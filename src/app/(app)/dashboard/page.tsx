@@ -32,7 +32,7 @@ export default async function DashboardPage() {
     return (
       <>
         <PageHeader title={l.title} />
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <EmptyState
             icon={FolderKanban}
             title={l.welcomeTitle}
@@ -53,7 +53,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader title={l.title} description={fmt(l.overview, { scope: scope ?? l.allProjects })} />
-      <div className="space-y-6 p-6">
+      <div className="min-w-0 space-y-6 p-4 sm:p-6">
         <KpiStrip>
           <Kpi label={l.kpi.projects} value={data.projectCount} />
           <Kpi label={l.kpi.cases} value={data.caseCount} hint={l.kpi.approved} />
@@ -82,7 +82,7 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3 [&>*]:min-w-0">
           <section className="xl:col-span-1">
             <SectionTitle>{l.recentFailures}</SectionTitle>
             <div className="rounded-md border">

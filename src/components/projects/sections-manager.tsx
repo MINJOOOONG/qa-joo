@@ -29,6 +29,16 @@ export function SectionsManager({
   const [busy, startTransition] = useTransition();
   const { t } = useI18n();
   const l = t.projects.sections;
+  // Nodes are in pre-order, so a node's descendants are the following nodes deeper than it.
+  const totals = nodes.map((node, index) => {
+    let total = caseCounts[node.section.id] ?? 0;
+    let hasChildren = false;
+    for (let i = index + 1; i < nodes.length && nodes[i].depth > node.depth; i += 1) {
+      hasChildren = true;
+      total += caseCounts[nodes[i].section.id] ?? 0;
+    }
+    return { total, hasChildren };
+  });
 
   useEffect(() => {
     if (state.success) formRef.current?.reset();
@@ -42,7 +52,7 @@ export function SectionsManager({
           <p className="p-4 text-[13px] text-muted-foreground">{l.empty}</p>
         ) : (
           <ul className="divide-y">
-            {nodes.map((node) => (
+            {nodes.map((node, index) => (
               <li key={node.section.id} className="flex items-center gap-2 px-3 py-1.5 text-[13px]" style={{ paddingLeft: 12 + node.depth * 20 }}>
                 <FolderTree className="size-3.5 text-muted-foreground" />
                 {editing === node.section.id ? (
@@ -67,8 +77,10 @@ export function SectionsManager({
                   </form>
                 ) : (
                   <>
-                    <span className="flex-1">{node.section.name}</span>
-                    <span className="text-xs tabular-nums text-muted-foreground">{fmt(l.caseCount, { count: caseCounts[node.section.id] ?? 0 })}</span>
+                    <span className="min-w-0 flex-1 truncate">{node.section.name}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {fmt(totals[index].hasChildren ? l.caseCountTotal : l.caseCount, { count: totals[index].total })}
+                    </span>
                     <Button
                       size="icon-sm"
                       variant="ghost"
@@ -102,7 +114,7 @@ export function SectionsManager({
           </ul>
         )}
       </div>
-      <form ref={formRef} onSubmit={onSubmit} className="flex items-center gap-2">
+      <form ref={formRef} onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
         <Input name="name" placeholder={l.newPlaceholder} className="max-w-64" required aria-label={l.nameLabel} />
         <NativeSelect name="parentId" className="max-w-64" aria-label={l.parentLabel} defaultValue="">
           <option value="">{l.topLevel}</option>

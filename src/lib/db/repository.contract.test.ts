@@ -92,13 +92,37 @@ describe.each(targets)("%s repository contract", (_name, make) => {
     await repo.setLastResult(a.id, "failed", new Date().toISOString());
     expect((await repo.listTestCases({ projectId: p.id, lastResults: ["failed"] })).map((c) => c.id)).toEqual([a.id]);
     expect((await repo.listTestCases({ projectId: p.id, lastResults: ["untested"] })).length).toBe(2);
-    expect(await repo.highestCaseNumber(p.id)).toBe(10);
+    expect(await repo.highestCaseNumber(p.id)).toBe(11); // TC-011 was deleted; its number stays used
     expect(await repo.getTestCase("not-a-uuid")).toBeNull();
 
     await repo.deleteSection(child.id);
     expect((await repo.getTestCase(a.id))?.sectionId).toBeNull();
     const patched = await repo.updateTestCase(a.id, { steps: ["Only step"], tags: ["x", "y"], description: "desc" });
     expect(patched).toMatchObject({ steps: ["Only step"], tags: ["x", "y"], description: "desc", caseKey: `${p.key}-TC-001` });
+  });
+
+  it("never lowers the case-number high-water mark when cases are deleted", async () => {
+    const p = await project();
+    const other = await project();
+    expect(await repo.highestCaseNumber(p.id)).toBe(0);
+    await testCase(p.id, `${p.key}-TC-001`);
+    const c13 = await testCase(p.id, `${p.key}-TC-013`);
+    const c14 = await testCase(p.id, `${p.key}-TC-014`);
+    await repo.deleteTestCase(c14.id);
+    await repo.deleteTestCase(c13.id);
+    expect(await repo.highestCaseNumber(p.id)).toBe(14);
+    expect(await repo.highestCaseNumber(other.id)).toBe(0);
+  });
+
+  it("remembers dismissed generated case titles per project", async () => {
+    const p = await project();
+    const other = await project();
+    expect(await repo.listDismissedCaseTitles(p.id)).toEqual([]);
+    await repo.addDismissedCaseTitles(p.id, ["reject bad url", "reject bad url"]);
+    await repo.addDismissedCaseTitles(p.id, ["reject bad url", "home loads"]);
+    expect((await repo.listDismissedCaseTitles(p.id)).sort()).toEqual(["home loads", "reject bad url"]);
+    expect(await repo.listDismissedCaseTitles(other.id)).toEqual([]);
+    await repo.addDismissedCaseTitles(p.id, []);
   });
 
   it("keeps one result per run and case, counting attempts", async () => {

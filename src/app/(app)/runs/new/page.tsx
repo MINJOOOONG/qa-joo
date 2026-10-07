@@ -47,7 +47,7 @@ export default async function NewRunPage({ searchParams }: PageProps<"/runs/new"
           key={project.id}
           projects={projects.map(({ id, key, name }) => ({ id, key, name }))}
           projectId={project.id}
-          defaultEnvironment={preferences.environment}
+          defaultEnvironment={project.environment ?? preferences.environment}
           sections={flattenSections(sections).map(({ section, depth }) => ({ section, depth }))}
           cases={cases.map((c) => ({
             id: c.id,

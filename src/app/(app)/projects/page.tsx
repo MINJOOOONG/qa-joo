@@ -14,9 +14,12 @@ export async function generateMetadata() {
   return { title: t.projects.list.title };
 }
 
+/** Host plus path (no scheme), e.g. "localhost:3301/app". */
 function hostOf(url: string): string {
   try {
-    return new URL(url).host;
+    const parsed = new URL(url);
+    const path = parsed.pathname === "/" ? "" : parsed.pathname;
+    return `${parsed.host}${path}`;
   } catch {
     return url;
   }
@@ -64,7 +67,7 @@ export default async function ProjectsPage() {
           </Button>
         }
       />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {projects.length === 0 ? (
           <EmptyState
             icon={FolderKanban}
@@ -109,7 +112,7 @@ export default async function ProjectsPage() {
                     <div className="space-y-1 text-xs">
                       {project.appUrl ? (
                         <a href={project.appUrl} target="_blank" rel="noreferrer" className="relative z-10 flex items-center gap-1 truncate text-muted-foreground hover:text-foreground">
-                          <ExternalLink className="size-3 shrink-0" /> <span className="truncate">{hostOf(project.appUrl)}</span>
+                          <ExternalLink className="size-3 shrink-0" /> <span className="truncate" title={project.appUrl}>{hostOf(project.appUrl)}</span>
                         </a>
                       ) : null}
                       {project.repoUrl ? (
@@ -129,7 +132,11 @@ export default async function ProjectsPage() {
                       </div>
                       <div>
                         <dt className="text-[11px] text-muted-foreground">{l.analyzed}</dt>
-                        <dd className="truncate text-xs font-medium">{formatRelative(project.lastAnalysis?.analyzedAt, locale)}</dd>
+                        <dd className="truncate text-xs font-medium">{formatRelative(
+                            // Same rule as the overview: only a real crawl with sources counts as analyzed.
+                            project.lastAnalysis && project.lastAnalysis.sources.length > 0 ? project.lastAnalysis.analyzedAt : undefined,
+                            locale,
+                          )}</dd>
                       </div>
                     </dl>
                   </div>

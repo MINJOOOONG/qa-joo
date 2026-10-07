@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, Input, NativeSelect, Textarea } from "@/components/ui/input";
@@ -164,6 +165,11 @@ export function CaseForm({
             {f.createAndBack}
           </Button>
         ) : null}
+        <Button variant="ghost" asChild>
+          <Link href={returnTo} data-testid="case-form-cancel">
+            {f.cancel}
+          </Link>
+        </Button>
       </div>
     </form>
   );

@@ -46,9 +46,10 @@ export function formatPercent(value: number | null, fallback = "—"): string {
 
 export function formatDuration(ms: number | null | undefined): string {
   if (ms === null || ms === undefined) return "—";
-  if (ms < 1000) return `${ms}ms`;
-  const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  // One format everywhere: seconds with one decimal under a minute ("0.2s", "12.4s"), then "2m 5s".
+  if (ms <= 0) return "0s";
+  const seconds = Math.max(ms, 100) / 1000;
+  if (seconds < 59.95) return `${seconds.toFixed(1)}s`;
   const minutes = Math.floor(seconds / 60);
   return `${minutes}m ${Math.round(seconds % 60)}s`;
 }

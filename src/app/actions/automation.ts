@@ -5,6 +5,7 @@ import { getServiceContext } from "@/lib/server-context";
 import { approveAutomation, cancelAutomationRun, rejectAutomation, saveAutomationCode } from "@/lib/services/automation";
 import { fmt } from "@/lib/i18n/define";
 import { getI18n } from "@/lib/i18n/server";
+import { lintAutomationCode } from "@/lib/automation/code-lint";
 import { formError } from "./form-error";
 import type { FormState } from "./form-state";
 
@@ -17,7 +18,9 @@ export async function saveAutomationCodeAction(id: string, code: string): Promis
     return formError(error);
   }
   revalidatePath("/", "layout");
-  return ok((await getI18n()).t.server.automationDraftSaved);
+  const { t } = await getI18n();
+  const blocking = lintAutomationCode(code).errors.length;
+  return ok(blocking ? fmt(t.automation.codeReview.savedBlocked, { count: blocking }) : t.server.automationDraftSaved);
 }
 
 export async function approveAutomationAction(id: string, code: string): Promise<FormState> {

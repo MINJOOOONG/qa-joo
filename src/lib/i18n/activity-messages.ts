@@ -45,6 +45,10 @@ const RULES: Rule[] = [
     `${m[2]} 러너에 Playwright 스펙 ${m[1]}개 실행 대기${m[3] ? ` (${m[3]})` : ""}`],
   [/^Automation run (\w+): (\d+) passed, (\d+) failed$/, (m, l) =>
     `자동화 실행 ${getDictionary(l).enums.automationRunStatus[m[1] as "passed"] ?? m[1]}: 통과 ${m[2]}개, 실패 ${m[3]}개`],
+  // Old analysis sentence (drafts awaiting review) and the current one (cases added directly).
+  [/^Analyzed (.+); (\d+) AI draft test case\(s\) await review$/, (m) => `${m[1]} 분석 완료 · AI 초안 테스트 케이스 ${m[2]}개 검토 대기`],
+  [/^Analyzed (.+); added (\d+) test case\(s\)$/, (m) => `${m[1]} 분석 완료 · 테스트 케이스 ${m[2]}개 추가`],
+  [/^AI suggested (\d+) missing regression case\(s\) for review$/, (m) => `AI가 빠진 회귀 케이스 ${m[1]}개를 제안`],
   [new RegExp(`^Analyzed the ${KEY} failure \\((\\w+), (\\w+) confidence\\)$`), (m, l) => {
     const d = getDictionary(l).enums;
     return `${m[1]} 실패 분석 (${d.failureCategory[m[2] as "ui"] ?? m[2]}, 신뢰도 ${d.confidence[m[3] as "low"] ?? m[3]})`;

@@ -17,6 +17,7 @@ import { fmt } from "@/lib/i18n/define";
 import { getI18n } from "@/lib/i18n/server";
 import { CaseDetailView } from "./case-detail-view";
 import { CaseDrawer } from "./case-drawer";
+import { CaseRow } from "./case-row";
 import { CaseFilters } from "./case-filters";
 import { hrefWith, parseCaseQuery, type CaseSearchParams } from "./query";
 
@@ -163,7 +164,7 @@ export async function CaseExplorer({
               {cases.map((testCase) => {
                 const href = hrefWith(basePath, searchParams, { case: testCase.id });
                 return (
-                  <TableRow key={testCase.id} data-state={query.caseId === testCase.id ? "selected" : undefined} className={cn(testCase.reviewStatus === "draft" && "bg-violet-50/30")}>
+                  <CaseRow key={testCase.id} href={href} data-state={query.caseId === testCase.id ? "selected" : undefined} className={cn(testCase.reviewStatus === "draft" && "bg-violet-50/30")}>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       <Link href={href} scroll={false} className="hover:text-foreground">
                         {testCase.caseKey}
@@ -195,7 +196,7 @@ export async function CaseExplorer({
                       <ResultBadge status={resultOf(testCase)} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatRelative(testCase.updatedAt, locale)}</TableCell>
-                  </TableRow>
+                  </CaseRow>
                 );
               })}
             </TableBody>
@@ -205,7 +206,12 @@ export async function CaseExplorer({
 
       {detail ? (
         <CaseDrawer closeHref={closeHref} title={`${detail.testCase.caseKey} ${detail.testCase.title}`}>
-          <CaseDetailView detail={detail} activeRuns={activeRuns} returnTo={closeHref} />
+          <CaseDetailView
+            detail={detail}
+            activeRuns={activeRuns}
+            returnTo={closeHref}
+            drawerHref={hrefWith(basePath, searchParams, { case: detail.testCase.id })}
+          />
           <div className="mt-6 border-t pt-3 text-xs">
             <Link href={`/cases/${detail.testCase.id}`} className="text-primary hover:underline">
               {e.openFullPage}

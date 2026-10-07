@@ -43,7 +43,7 @@ export interface PlaywrightJsonReport {
   errors?: Array<{ message?: string }>;
 }
 
-const ANSI = /\u001b\[[0-9;]*m/g;
+const ANSI = /\u001b\[[0-?]*[ -/]*[@-~]/g;
 
 export function stripAnsi(value: string): string {
   return value.replace(ANSI, "");

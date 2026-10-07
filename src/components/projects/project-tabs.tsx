@@ -19,7 +19,7 @@ export function ProjectTabs({ projectKey }: { projectKey: string }) {
     { href: `${base}/settings`, label: l.settings },
   ];
   return (
-    <nav className="flex gap-1 border-b px-6" aria-label={l.ariaLabel}>
+    <nav className="flex gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] sm:px-6" aria-label={l.ariaLabel}>
       {tabs.map((tab) => {
         const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
         return (
@@ -28,7 +28,7 @@ export function ProjectTabs({ projectKey }: { projectKey: string }) {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "-mb-px flex h-9 items-center gap-1.5 border-b-2 border-transparent px-2.5 text-[13px] text-muted-foreground hover:text-foreground",
+              "-mb-px flex h-9 shrink-0 items-center whitespace-nowrap gap-1.5 border-b-2 border-transparent px-2.5 text-[13px] text-muted-foreground hover:text-foreground",
               active && "border-primary font-medium text-foreground",
             )}
           >

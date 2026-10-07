@@ -43,6 +43,10 @@ export interface MemoryData {
   automationRuns: AutomationRun[];
   automationResults: AutomationResult[];
   activities: Activity[];
+  /** Per-project case-number high-water mark (keys are never reused after deletes). */
+  caseNumberMarks: Record<string, number>;
+  /** Per-project normalized titles of deleted generated cases. */
+  dismissedCaseTitles: Record<string, string[]>;
 }
 
 export function emptyMemoryData(): MemoryData {
@@ -57,6 +61,8 @@ export function emptyMemoryData(): MemoryData {
     automationRuns: [],
     automationResults: [],
     activities: [],
+    caseNumberMarks: {},
+    dismissedCaseTitles: {},
   };
 }
 
@@ -137,6 +143,8 @@ export class MemoryRepository implements Repository {
       this.data.automationRuns.filter((r) => r.projectId === id).map((r) => r.id),
     );
     this.data.projects = this.data.projects.filter((p) => p.id !== id);
+    if (this.data.caseNumberMarks) delete this.data.caseNumberMarks[id];
+    if (this.data.dismissedCaseTitles) delete this.data.dismissedCaseTitles[id];
     this.data.sections = this.data.sections.filter((s) => s.projectId !== id);
     this.data.testCases = this.data.testCases.filter((c) => c.projectId !== id);
     this.data.testRuns = this.data.testRuns.filter((r) => r.projectId !== id);
@@ -223,7 +231,20 @@ export class MemoryRepository implements Repository {
   }
 
   async highestCaseNumber(projectId: string) {
-    return highestCaseNumber(this.data.testCases.filter((c) => c.projectId === projectId).map((c) => c.caseKey));
+    const existing = highestCaseNumber(this.data.testCases.filter((c) => c.projectId === projectId).map((c) => c.caseKey));
+    return Math.max(existing, this.data.caseNumberMarks?.[projectId] ?? 0);
+  }
+
+  async listDismissedCaseTitles(projectId: string) {
+    return clone(this.data.dismissedCaseTitles?.[projectId] ?? []);
+  }
+
+  async addDismissedCaseTitles(projectId: string, normalizedTitles: string[]) {
+    this.data.dismissedCaseTitles ??= {};
+    const current = new Set(this.data.dismissedCaseTitles[projectId] ?? []);
+    for (const title of normalizedTitles) if (title) current.add(title);
+    this.data.dismissedCaseTitles[projectId] = [...current];
+    this.commit();
   }
 
   async createTestCase(input: NewTestCase) {
@@ -240,6 +261,9 @@ export class MemoryRepository implements Repository {
       updatedAt: timestamp,
     };
     this.data.testCases.push(testCase);
+    const number = highestCaseNumber([input.caseKey]);
+    this.data.caseNumberMarks ??= {};
+    this.data.caseNumberMarks[input.projectId] = Math.max(this.data.caseNumberMarks[input.projectId] ?? 0, number);
     this.commit();
     return clone(testCase);
   }

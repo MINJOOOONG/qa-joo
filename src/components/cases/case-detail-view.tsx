@@ -24,10 +24,14 @@ export async function CaseDetailView({
   detail,
   activeRuns,
   returnTo,
+  drawerHref,
 }: {
   detail: CaseDetail;
   activeRuns: RunOption[];
+  /** Where to go after deleting the case (the case list). */
   returnTo: string;
+  /** Set when shown in the list drawer: the list URL with `?case=` (edit returns here, duplicate opens the copy here). */
+  drawerHref?: string;
 }) {
   const { testCase, project, sectionPath, history, automation } = detail;
   const { t, locale } = await getI18n();
@@ -64,7 +68,9 @@ export async function CaseDetailView({
           projectId={project.id}
           caseKey={testCase.caseKey}
           isApproved={testCase.reviewStatus === "approved"}
-          activeRuns={activeRuns}
+          activeRuns={activeRuns.map((run) => ({ ...run, included: history.some((entry) => entry.run.id === run.id) }))}
+          editReturnTo={drawerHref ?? `/cases/${testCase.id}`}
+          listHref={drawerHref ? returnTo : null}
           automationTestId={automation?.id ?? null}
           returnTo={returnTo}
         />

@@ -21,7 +21,7 @@ import { assertSafeUrl } from "@/lib/security/url-guard";
 import { logActivity } from "./activity";
 import { createTestCase } from "./cases";
 import type { ServiceContext } from "./context";
-import { recordAutomatedResult } from "./results";
+import { recordAutomatedResult, refreshLastResult } from "./results";
 
 // --- Drafts ----------------------------------------------------------------
 
@@ -348,6 +348,9 @@ export async function applyRunnerCallback(
         automationStartedAt: startedAt,
       });
       if (mirroredResult) mirrored += 1;
+      else await refreshLastResult(ctx, item.testCaseId);
+    } else {
+      await refreshLastResult(ctx, item.testCaseId);
     }
   }
   if (testRun && results.length) await ctx.repo.updateTestRun(testRun.id, {});
@@ -383,6 +386,19 @@ export async function applyRunnerCallback(
     });
   }
   return { run: updated, accepted: results.length, mirrored, dropped: payload.results.length - results.length };
+}
+
+/** Each case's most recent automation result (newest run first), independent of manual test runs. */
+export async function latestAutomationResults(
+  ctx: ServiceContext,
+  testCaseIds: string[],
+): Promise<Map<string, AutomationResult>> {
+  const entries = await Promise.all(
+    Array.from(new Set(testCaseIds)).map(
+      async (id) => [id, (await ctx.repo.listAutomationResults({ testCaseId: id, limit: 1 }))[0] ?? null] as const,
+    ),
+  );
+  return new Map(entries.filter((entry): entry is readonly [string, AutomationResult] => entry[1] !== null));
 }
 
 export interface AutomationRunDetail {

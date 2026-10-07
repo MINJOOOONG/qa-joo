@@ -6,6 +6,7 @@ import { FieldError, Input } from "@/components/ui/input";
 import { deleteProjectAction } from "@/app/actions/projects";
 import { initialFormState } from "@/app/actions/form-state";
 import { useFormSubmit } from "@/hooks/use-form-submit";
+import { fmt } from "@/lib/i18n/define";
 import { useI18n } from "@/lib/i18n/client";
 
 export function DeleteProject({ projectId, projectKey }: { projectId: string; projectKey: string }) {
@@ -19,8 +20,8 @@ export function DeleteProject({ projectId, projectKey }: { projectId: string; pr
         <span className="font-mono font-medium text-foreground">{projectKey}</span>
         {t.projects.delete.descriptionAfter}
       </p>
-      <div className="flex items-center gap-2">
-        <Input name="confirmKey" placeholder={projectKey} className="max-w-40 font-mono uppercase" aria-label={t.projects.delete.confirmLabel} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Input name="confirmKey" placeholder={fmt(t.projects.delete.confirmPlaceholder, { key: projectKey })} className="max-w-56 font-mono uppercase placeholder:font-sans placeholder:normal-case" aria-label={t.projects.delete.confirmLabel} />
         <Button type="submit" variant="destructive-outline" disabled={pending}>
           {t.projects.delete.button}
         </Button>

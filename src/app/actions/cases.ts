@@ -65,15 +65,27 @@ export async function updateCaseAction(caseId: string, _state: FormState, formDa
   redirect(safeRedirectPath(formData.get("returnTo"), `/cases/${caseId}`));
 }
 
-export async function duplicateCaseAction(caseId: string): Promise<FormState> {
+/**
+ * Duplicates a case; the copy's title suffix is written in the UI language. With `listHref`
+ * (invoked from the case list / drawer) the user stays in that list with the copy opened in the
+ * drawer; otherwise the copy's full page opens.
+ */
+export async function duplicateCaseAction(caseId: string, listHref?: string | null): Promise<FormState> {
   let id: string;
   try {
     const ctx = await getServiceContext();
-    id = (await duplicateTestCase(ctx, caseId)).id;
+    const { locale } = await getI18n();
+    id = (await duplicateTestCase(ctx, caseId, locale)).id;
   } catch (error) {
     return formError(error);
   }
   revalidatePath("/", "layout");
+  const list = listHref ? safeRedirectPath(listHref, "") : "";
+  if (list) {
+    const url = new URL(list, "http://local");
+    url.searchParams.set("case", id);
+    redirect(`${url.pathname}${url.search}`);
+  }
   redirect(`/cases/${id}`);
 }
 

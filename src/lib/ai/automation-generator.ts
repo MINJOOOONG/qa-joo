@@ -70,7 +70,7 @@ export function stepToCode(step: string, page: PageInfo | null, assumptions: str
       /\bas\s+the\s+(.+)$/i.exec(text)?.[1] ??
       "";
     if (!target.trim()) {
-      assumptions.push(`Choose the field for "${text}".`);
+      assumptions.push(`Choose the field for ${quoteOnce(text)}.`);
       return [`// TODO: ${oneLine(text)}`];
     }
     const locator = locatorForField(target, page);
@@ -88,7 +88,7 @@ export function stepToCode(step: string, page: PageInfo | null, assumptions: str
   }
 
   if (/^(wait|observe|inspect|review|check)\b/i.test(text)) return [`// ${oneLine(text)}`];
-  assumptions.push(/[가-힣]/.test(text) ? `수동으로 자동화하세요: "${text}"` : `Automate manually: "${text}".`);
+  assumptions.push(/[가-힣]/.test(text) ? `수동으로 자동화하세요: ${quoteOnce(text)}` : `Automate manually: ${quoteOnce(text)}.`);
   return [`// TODO: ${oneLine(text)}`];
 }
 
@@ -110,7 +110,7 @@ function koreanStepToCode(text: string, values: string[], page: PageInfo | null,
     const target = /^["'`]([^"'`]+)["'`]\s*(?:필드|입력란)?\s*에/.exec(text)?.[1];
     const value = target ? values[1] : undefined;
     if (!target || value === undefined) {
-      assumptions.push(`입력값을 정하세요: "${text}"`);
+      assumptions.push(`입력값을 정하세요: ${quoteOnce(text)}`);
       return [`// TODO: ${oneLine(text)}`];
     }
     const locator = locatorForField(target, page);
@@ -140,18 +140,44 @@ export function splitCompoundStep(step: string): string[] {
 /** Text placed in a `//` comment: one line, so user input can never end the comment early. */
 const oneLine = (value: string) => value.replace(/\s+/g, " ").trim();
 
+/** Wraps text in quotes unless it already contains quoted parts (avoids `""Field"에 …"`). */
+const quoteOnce = (value: string) => (/["'`“”]/.test(value) ? value : `"${value}"`);
+
 /** Matched quote pairs only; a single quote must not be an apostrophe inside a word ("user's"). */
 const QUOTED_TEXT = /"([^"\n]{3,})"|“([^”\n]{3,})”|(?<![A-Za-z0-9])'([^'\n]{3,})'(?![A-Za-z0-9])/;
+
+/** Negated error phrases ("오류 없이", "no errors", "without errors", "에러가 표시되지 않는다") are not error expectations. */
+const NEGATED_ERROR =
+  /(?:오류|에러|실패)\s*(?:가|이|는|도)?\s*(?:없이|없다|없고|없음|없어야|없는|발생하지\s*않|표시되지\s*않|나타나지\s*않|않는다)|\b(?:no|without(?:\s+any)?)\s+(?:visible\s+)?errors?\b|\berrors?\s+(?:is\s+|are\s+)?not\s+(?:shown|displayed)\b|\bdoes\s+not\s+fail\b/gi;
+const ERROR_WORDS = /\b(error|reject|invalid|blocked|not allowed|denied|fail)|오류|에러|거부|차단|실패|유효하지|필수/i;
+const SUCCESS_WORDS = /\b(succeed|succeeds|success|successful(?:ly)?|displayed|shown|shows?|appears?|visible|loads?|saved|created)\b|성공|정상|표시된다|표시됨|보인다|나타난다|저장된다|생성된다|완료/i;
+
+export function expectationKind(expected: string): "error" | "success" | "unknown" {
+  const withoutNegations = expected.replace(NEGATED_ERROR, " ");
+  if (ERROR_WORDS.test(withoutNegations)) return "error";
+  if (SUCCESS_WORDS.test(expected) || withoutNegations !== expected) return "success";
+  return "unknown";
+}
 
 export function assertionFor(expected: string): string[] {
   const quoted = QUOTED_TEXT.exec(expected);
   const text = quoted?.[1] ?? quoted?.[2] ?? quoted?.[3];
-  if (text) return [`await expect(page.getByText(${js(text)})).toBeVisible();`];
-  if (/\b(error|reject|invalid|blocked|not allowed|denied|fail)|오류|에러|거부|차단|실패|유효하지|필수/i.test(expected)) {
-    return [
-      `// Expected: ${oneLine(expected)}`,
-      `await expect(page.getByRole("alert").first()).toBeVisible();`,
-    ];
+  const kind = expectationKind(expected);
+  const lines = [`// Expected: ${oneLine(expected)}`];
+  if (kind === "success") {
+    // A happy path must not show an error alert; asserting the alert is visible would pass on failure.
+    lines.push(`await expect(page.getByRole("alert")).toHaveCount(0);`);
+    if (text) lines.push(`await expect(page.getByText(${js(text)}).first()).toBeVisible();`);
+    return lines;
+  }
+  if (text) {
+    // .first(): the same text can appear in a label and in the message (strict mode).
+    lines.push(`await expect(page.getByText(${js(text)}).first()).toBeVisible();`);
+    return lines;
+  }
+  if (kind === "error") {
+    lines.push(`await expect(page.getByRole("alert").first()).toBeVisible();`);
+    return lines;
   }
   return [
     `// TODO: assert the expected result — ${oneLine(expected)}`,

@@ -8,6 +8,7 @@ import { getServiceContext } from "@/lib/server-context";
 import { fmt } from "@/lib/i18n/define";
 import { formatDateTime } from "@/lib/i18n/format";
 import { getI18n } from "@/lib/i18n/server";
+import { localizeMessage } from "@/lib/i18n/server-messages";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -24,6 +25,8 @@ export default async function AutomationTestPage({ params }: PageProps<"/automat
   const [testCase, project] = await Promise.all([ctx.repo.getTestCase(automation.testCaseId), ctx.repo.getProject(automation.projectId)]);
   if (!testCase || !project) notFound();
   const fromAi = automation.generatedBy && automation.generatedBy !== "heuristic" && automation.generatedBy !== "demo-seed";
+  const generatedByLabel =
+    automation.generatedBy === "heuristic" ? t.shell.aiProvider.heuristic : (automation.generatedBy ?? "—");
 
   return (
     <>
@@ -57,9 +60,9 @@ export default async function AutomationTestPage({ params }: PageProps<"/automat
           </div>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {fmt(m.generatedBy, { by: automation.generatedBy ?? "—", time: formatDateTime(automation.updatedAt, locale) })}
+          {fmt(m.generatedBy, { by: generatedByLabel, time: formatDateTime(automation.updatedAt, locale) })}
           {automation.approvedAt ? fmt(m.approvedAt, { time: formatDateTime(automation.approvedAt, locale) }) : ""}
-          {automation.reviewNote ? ` · ${automation.reviewNote}` : ""}
+          {automation.reviewNote ? ` · ${localizeMessage(automation.reviewNote, locale)}` : ""}
         </p>
       </div>
       <div className="grid gap-6 p-6 xl:grid-cols-[22rem_minmax(0,1fr)]">

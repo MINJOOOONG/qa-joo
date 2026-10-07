@@ -12,10 +12,10 @@ export function PageHeader({
   eyebrow?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
+    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-4 py-4 sm:px-6">
       <div className="min-w-0">
         {eyebrow ? <div className="mb-1 text-xs text-muted-foreground">{eyebrow}</div> : null}
-        <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="truncate whitespace-nowrap text-lg font-semibold tracking-tight">{title}</h1>
         {description ? <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

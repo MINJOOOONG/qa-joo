@@ -7,9 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatDuration } from "@/lib/domain/run-stats";
 import type { RunnerMode } from "@/lib/env";
 import type { ServiceContext } from "@/lib/services/context";
+import { latestAutomationResults } from "@/lib/services/automation";
 import { fmt } from "@/lib/i18n/define";
 import { formatRelative } from "@/lib/i18n/format";
 import { getI18n } from "@/lib/i18n/server";
+import { localizeMessage } from "@/lib/i18n/server-messages";
 
 export async function AutomationOverview({ ctx, projectId, runnerMode }: { ctx: ServiceContext; projectId?: string; runnerMode: RunnerMode }) {
   const { t: i18n, locale } = await getI18n();
@@ -25,6 +27,8 @@ export async function AutomationOverview({ ctx, projectId, runnerMode }: { ctx: 
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const drafts = tests.filter((t) => t.status === "draft");
   const approved = tests.filter((t) => t.status === "approved");
+  const rejected = tests.filter((t) => t.status === "rejected");
+  const latestByCase = await latestAutomationResults(ctx, approved.map((t) => t.testCaseId));
   const runResults = new Map(
     await Promise.all(runs.map(async (run) => [run.id, await ctx.repo.listAutomationResults({ automationRunId: run.id })] as const)),
   );
@@ -90,7 +94,7 @@ export async function AutomationOverview({ ctx, projectId, runnerMode }: { ctx: 
                       {!projectId ? <TableCell className="text-xs">{projectById.get(test.projectId)?.key}</TableCell> : null}
                       <TableCell className="font-mono text-xs">{test.filePath}</TableCell>
                       <TableCell>
-                        <ResultBadge status={testCase?.lastResult} />
+                        <ResultBadge status={latestByCase.get(test.testCaseId)?.status ?? null} />
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatRelative(test.approvedAt, locale)}</TableCell>
                     </TableRow>
@@ -103,6 +107,29 @@ export async function AutomationOverview({ ctx, projectId, runnerMode }: { ctx: 
           <p className="rounded-md border border-dashed p-4 text-center text-[13px] text-muted-foreground">{m.noApproved}</p>
         )}
       </section>
+
+      {rejected.length ? (
+        <section>
+          <SectionTitle>{fmt(m.rejectedTitle, { count: rejected.length })}</SectionTitle>
+          <ul className="divide-y rounded-md border">
+            {rejected.map((test) => {
+              const testCase = cases.get(test.testCaseId);
+              return (
+                <li key={test.id} className="flex items-center gap-3 px-3 py-2 text-[13px]">
+                  <Badge variant="failed">{i18n.enums.automationTestStatus.rejected}</Badge>
+                  <Link href={`/automation/tests/${test.id}`} className="font-medium hover:underline">
+                    <span className="font-mono text-xs text-muted-foreground">{testCase?.caseKey}</span> {testCase?.title}
+                  </Link>
+                  {test.reviewNote ? (
+                    <span className="truncate text-xs text-muted-foreground">{fmt(m.rejectedNote, { note: localizeMessage(test.reviewNote, locale) })}</span>
+                  ) : null}
+                  <span className="ml-auto text-xs text-muted-foreground">{formatRelative(test.updatedAt, locale)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       <section>
         <SectionTitle>{m.runsTitle}</SectionTitle>

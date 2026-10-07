@@ -176,6 +176,11 @@ async function main() {
   } catch {
     reportErrors = ["Playwright did not produce a JSON report."];
   }
+  // The list reporter colors its output; store a plain-text log so the UI does not show escape codes.
+  await fs
+    .readFile(logFile, "utf8")
+    .then((text) => fs.writeFile(logFile, stripAnsi(text)))
+    .catch(() => undefined);
   const logUrl = await upload(logFile, "playwright-log", "text/plain");
 
   type Result = {

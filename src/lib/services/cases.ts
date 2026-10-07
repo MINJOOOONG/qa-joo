@@ -12,6 +12,8 @@ import type {
   TestRun,
 } from "@/lib/domain/types";
 import { sectionPaths } from "@/lib/domain/sections";
+import { normalizeTitle } from "@/lib/ai/heuristic-cases";
+import type { Locale } from "@/lib/i18n/config";
 import { logActivity } from "./activity";
 import type { ServiceContext } from "./context";
 
@@ -33,7 +35,8 @@ async function assertSectionInProject(ctx: ServiceContext, projectId: string, se
 
 /**
  * Creates a test case with the next free key (e.g. RF-TC-013). Keys are derived from the highest
- * key in use; if another writer takes the same key concurrently the unique constraint rejects it
+ * key ever used in the project (existing keys or the project's high-water mark), so keys of
+ * deleted cases are never handed out again; if another writer takes the same key concurrently the unique constraint rejects it
  * and we retry with a fresh key.
  */
 export async function createTestCase(ctx: ServiceContext, raw: unknown, options: CreateOptions = {}): Promise<TestCase> {
@@ -115,13 +118,17 @@ export async function updateTestCase(ctx: ServiceContext, id: string, raw: unkno
   return updated;
 }
 
-export async function duplicateTestCase(ctx: ServiceContext, id: string): Promise<TestCase> {
+const COPY_SUFFIX: Record<Locale, string> = { ko: " (사본)", en: " (copy)" };
+
+/** Copies a case under a new key; the title suffix is written in the UI language (default Korean). */
+export async function duplicateTestCase(ctx: ServiceContext, id: string, locale: Locale = "ko"): Promise<TestCase> {
   const source = await ctx.repo.getTestCase(id);
   if (!source) throw notFound("Test case", id);
+  const suffix = COPY_SUFFIX[locale] ?? COPY_SUFFIX.ko;
   return createTestCase(ctx, {
     projectId: source.projectId,
     sectionId: source.sectionId,
-    title: `${source.title} (copy)`.slice(0, 200),
+    title: `${source.title.slice(0, 200 - suffix.length)}${suffix}`,
     description: source.description,
     preconditions: source.preconditions,
     steps: source.steps,
@@ -142,6 +149,11 @@ export async function deleteTestCase(ctx: ServiceContext, id: string): Promise<v
   const testCase = await ctx.repo.getTestCase(id);
   if (!testCase) throw notFound("Test case", id);
   await ctx.repo.deleteTestCase(id);
+  // Remember deleted generated cases so later analyses / gap fills never suggest them again.
+  if (testCase.source === "ai_generated") {
+    const key = normalizeTitle(testCase.title);
+    if (key) await ctx.repo.addDismissedCaseTitles(testCase.projectId, [key]);
+  }
   await logActivity(ctx, {
     projectId: testCase.projectId,
     action: "test_case.deleted",

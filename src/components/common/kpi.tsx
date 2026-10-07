@@ -26,7 +26,7 @@ export function Kpi({
   tone?: "default" | "passed" | "failed";
 }) {
   return (
-    <div className="px-4 py-3">
+    <div className="min-w-0 px-3 py-3 sm:px-4">
       <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
       <div
         className={cn(
@@ -37,7 +37,7 @@ export function Kpi({
       >
         {value}
       </div>
-      {hint ? <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div> : null}
+      {hint ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</div> : null}
     </div>
   );
 }

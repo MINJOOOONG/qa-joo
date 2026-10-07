@@ -1,8 +1,8 @@
 import { UNHAPPY_CASE_TYPES } from "@/lib/domain/constants";
 import type { ProjectAnalysis } from "@/lib/analyzer/types";
 import type { Locale } from "@/lib/i18n/config";
-import { englishHeuristicCases } from "./heuristic-cases-en";
-import { koreanHeuristicCases, SUBAREAS } from "./heuristic-cases-ko";
+import { englishGapCases, englishHeuristicCases } from "./heuristic-cases-en";
+import { koreanGapCases, koreanHeuristicCases, SUBAREAS } from "./heuristic-cases-ko";
 import type { GeneratedCase } from "./schemas";
 
 export { SUBAREAS };
@@ -25,7 +25,19 @@ export function heuristicTestCases(
   return balanceCases(dedupeCases(cases), maxCases);
 }
 
-const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+/**
+ * Candidates for "fill gaps" without an AI provider: gap-only cases (linked pages, back/refresh,
+ * keyboard-only, mobile layout, whitespace input, …) first, then any step-1 case that is still
+ * missing. The caller dedupes against existing and dismissed titles and balances the result.
+ */
+export function heuristicGapCandidates(projectName: string, analysis: ProjectAnalysis, locale: Locale = "ko"): GeneratedCase[] {
+  const gaps = locale === "en" ? englishGapCases(projectName, analysis) : koreanGapCases(projectName, analysis);
+  const base = locale === "en" ? englishHeuristicCases(projectName, analysis) : koreanHeuristicCases(projectName, analysis);
+  return dedupeCases([...gaps, ...base]);
+}
+
+/** Normalized form used to compare case titles (case/punctuation-insensitive). Idempotent. */
+export const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
 export function dedupeCases(cases: GeneratedCase[], existingTitles: string[] = []): GeneratedCase[] {
   const seen = new Set(existingTitles.map(normalizeTitle));
@@ -77,6 +89,8 @@ const SUBAREA_RANK: string[][] = [
   ["boundary", SUBAREAS.boundary],
   ["security", SUBAREAS.security],
   ["error handling", SUBAREAS.error],
+  ["navigation", "내비게이션"],
+  ["usability", "사용성"],
 ];
 
 /** Groups cases by area (first-seen order), then smoke → happy path → negative → boundary → security → error. */

@@ -41,14 +41,14 @@ export function Topbar({
   const { t, locale } = useI18n();
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-6 border-b bg-background/95 px-6 backdrop-blur">
-      <Link href="/projects" className="flex items-center gap-2" aria-label={t.shell.home}>
+    <header className="sticky top-0 z-20 flex h-14 min-w-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur sm:gap-6 sm:px-6">
+      <Link href="/projects" className="flex shrink-0 items-center gap-2" aria-label={t.shell.home}>
         <span className="flex size-7 items-center justify-center rounded-md bg-primary text-white">
           <FlaskConical className="size-4" />
         </span>
-        <span className="text-[15px] font-semibold tracking-tight">QA JOO</span>
+        <span className="hidden whitespace-nowrap text-[15px] font-semibold tracking-tight sm:inline">QA JOO</span>
       </Link>
-      <nav className="flex h-full items-center gap-1" aria-label="Primary">
+      <nav className="flex h-full shrink-0 items-center gap-1" aria-label="Primary">
         {NAV.map(({ href, key }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
@@ -57,7 +57,7 @@ export function Topbar({
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex h-full items-center px-3 text-sm text-muted-foreground transition-colors hover:text-foreground",
+                "relative flex h-full items-center whitespace-nowrap px-2 text-sm sm:px-3 text-muted-foreground transition-colors hover:text-foreground",
                 active && "font-medium text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary",
               )}
             >
@@ -66,10 +66,10 @@ export function Topbar({
           );
         })}
       </nav>
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex min-w-0 items-center justify-end gap-2 sm:gap-3">
         <GlobalSearch />
         <div className="flex shrink-0 items-center rounded-md border p-0.5 text-xs" role="group" aria-label={t.shell.switchLanguage}>
-          <Languages className="mx-1 size-3.5 text-muted-foreground" aria-hidden />
+          <Languages className="mx-1 hidden size-3.5 sm:block text-muted-foreground" aria-hidden />
           {(["ko", "en"] as const).map((value) => (
             <button
               key={value}
@@ -89,11 +89,11 @@ export function Topbar({
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2" data-testid="user-menu">
+            <Button variant="ghost" size="sm" className="shrink-0 gap-2" data-testid="user-menu">
               <span className="flex size-6 items-center justify-center rounded-full bg-zinc-200 text-[11px] font-semibold text-zinc-700">
                 {user.name.slice(0, 1).toUpperCase()}
               </span>
-              <span className="max-w-32 truncate">{user.name}</span>
+              <span className="hidden max-w-32 truncate md:inline">{user.name}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

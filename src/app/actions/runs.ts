@@ -43,7 +43,7 @@ export async function setRunStatusAction(runId: string, status: TestRun["status"
   return { error: null, fieldErrors: {}, success: Date.now() };
 }
 
-export async function deleteRunAction(runId: string): Promise<FormState> {
+export async function deleteRunAction(runId: string, returnTo = "/runs"): Promise<FormState> {
   try {
     const ctx = await getServiceContext();
     await deleteTestRun(ctx, runId);
@@ -51,5 +51,6 @@ export async function deleteRunAction(runId: string): Promise<FormState> {
     return formError(error);
   }
   revalidatePath("/", "layout");
-  redirect("/runs");
+  // Only the global list or a project's Runs tab are valid destinations (no open redirects).
+  redirect(/^\/projects\/[A-Za-z0-9_-]{1,20}\/runs$/.test(returnTo) ? returnTo : "/runs");
 }

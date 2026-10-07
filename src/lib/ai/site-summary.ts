@@ -19,6 +19,30 @@ function readmeIntro(readme: string | null): string | null {
 const list = (values: string[], max: number) => values.slice(0, max).join(", ");
 
 /**
+ * Korean particle for a word, chosen from the batchim (final consonant) of its last Hangul syllable.
+ * Returns null when the word does not end in Hangul (Latin, digits…): the caller should then
+ * rephrase without a particle, because the pronunciation is unknown.
+ */
+export function josa(word: string, kind: "이에요" | "은" | "과" | "으로" | "이"): string | null {
+  const code = word.trim().charCodeAt(word.trim().length - 1) - 0xac00;
+  if (Number.isNaN(code) || code < 0 || code > 11171) return null;
+  const batchim = code % 28;
+  switch (kind) {
+    case "이에요":
+      return batchim ? "이에요" : "예요";
+    case "은":
+      return batchim ? "은" : "는";
+    case "과":
+      return batchim ? "과" : "와";
+    case "이":
+      return batchim ? "이" : "가";
+    case "으로":
+      // ㄹ (8) takes 로 like an open syllable.
+      return batchim && batchim !== 8 ? "으로" : "로";
+  }
+}
+
+/**
  * Plain-language summary of what the analyzed site is, built from the crawl and repository
  * signals. Used when no AI provider is configured (the AI writes its own summary otherwise).
  */
@@ -49,13 +73,29 @@ export function heuristicSiteSummary(projectName: string, analysis: ProjectAnaly
       );
     }
   } else {
-    sentences.push(what ? `${title}: ${what}` : `${title}은(는) 이 프로젝트에 연결된 서비스예요.`);
-    if (screens.length) sentences.push(`주요 화면은 ${list(screens, 4)}이에요.`);
-    if (menus.length) sentences.push(`메뉴는 ${list(menus, 5)}로 구성돼 있어요.`);
+    if (what) {
+      // The site's own description is usually English: quote it as a label instead of mixing it into a Korean sentence.
+      sentences.push(`${title} · 사이트 소개 문구: "${what}"`);
+    } else {
+      const topic = josa(title, "은");
+      sentences.push(topic ? `${title}${topic} 이 프로젝트에 연결된 서비스예요.` : `연결된 서비스: ${title}.`);
+    }
+    if (screens.length) {
+      const value = list(screens, 4);
+      const copula = josa(value, "이에요");
+      sentences.push(copula ? `주요 화면은 ${value}${copula}.` : `주요 화면: ${value}.`);
+    }
+    if (menus.length) {
+      const value = list(menus, 5);
+      const particle = josa(value, "으로");
+      sentences.push(particle ? `메뉴는 ${value}${particle} 구성돼 있어요.` : `메뉴: ${value}.`);
+    }
     if (fields.length || buttons.length) {
-      sentences.push(
-        `사용자는 ${[fields.length ? `${list(fields, 3)} 같은 입력칸` : null, buttons.length ? `${list(buttons, 3)} 같은 버튼` : null].filter(Boolean).join("과 ")}으로 기능을 사용해요.`,
+      const parts = [fields.length ? `${list(fields, 3)} 같은 입력칸` : null, buttons.length ? `${list(buttons, 3)} 같은 버튼` : null].filter(
+        (part): part is string => Boolean(part),
       );
+      const joined = parts.length === 2 ? `${parts[0]}${josa(parts[0], "과")} ${parts[1]}` : parts[0];
+      sentences.push(`사용자는 ${joined}${josa(joined, "으로")} 기능을 사용해요.`);
     }
     if (repo) {
       sentences.push(

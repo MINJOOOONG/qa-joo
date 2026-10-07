@@ -27,6 +27,26 @@ function suggestKey(name: string): string {
   return key.length >= 2 ? key : words[0].slice(0, 3);
 }
 
+/** localhost, 127.x, ::1, *.local and RFC 1918 addresses: a site running on the tester's machine/network. */
+function isLocalUrl(value: string): boolean {
+  let host: string;
+  try {
+    host = new URL(value.trim()).hostname.replace(/^\[|\]$/g, "");
+  } catch {
+    return false;
+  }
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host === "::1" ||
+    /^127\./.test(host) ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  );
+}
+
 export function ProjectForm({
   mode,
   action,
@@ -41,6 +61,9 @@ export function ProjectForm({
   const [name, setName] = useState(defaults?.name ?? "");
   const [key, setKey] = useState(defaults?.key ?? "");
   const [keyTouched, setKeyTouched] = useState(mode === "edit");
+  const defaultEnvironment = defaults?.environment ?? "staging";
+  const [environment, setEnvironment] = useState<Environment>(defaultEnvironment);
+  const [environmentTouched, setEnvironmentTouched] = useState(mode === "edit");
   const errors = state.fieldErrors;
   const { t } = useI18n();
   const f = t.projects.form;
@@ -51,7 +74,7 @@ export function ProjectForm({
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-4" noValidate>
-      <div className="grid grid-cols-[1fr_160px] gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_180px]">
         <Field label={f.name} htmlFor="name" required error={errors.name}>
           <Input
             id="name"
@@ -67,7 +90,7 @@ export function ProjectForm({
             required
           />
         </Field>
-        <Field label={f.key} htmlFor="key" required error={errors.key} hint={mode === "create" ? f.keyHintCreate : f.keyHintEdit}>
+        <Field label={f.key} htmlFor="key" required error={errors.key} hint={mode === "create" ? `${f.keyHintCreate} · ${f.keyRule} (${key.length}/10)` : f.keyHintEdit}>
           <Input
             id="key"
             name="key"
@@ -97,7 +120,14 @@ export function ProjectForm({
         </div>
         <div className="flex flex-col gap-4">
           <Field label={f.appUrl} htmlFor="appUrl" error={errors.appUrl} hint={f.appUrlHint}>
-            <Input id="appUrl" name="appUrl" type="url" defaultValue={defaults?.appUrl ?? ""} placeholder="https://app.example.com" aria-invalid={Boolean(errors.appUrl)} />
+            <Input
+              id="appUrl"
+              name="appUrl"
+              type="url"
+              defaultValue={defaults?.appUrl ?? ""}
+              onChange={(event) => {
+                if (!environmentTouched) setEnvironment(isLocalUrl(event.target.value) ? "local" : defaultEnvironment);
+              }} placeholder="https://app.example.com" aria-invalid={Boolean(errors.appUrl)} />
           </Field>
           <Field label={f.repoUrl} htmlFor="repoUrl" error={errors.repoUrl} hint={f.repoUrlHint}>
             <Input id="repoUrl" name="repoUrl" type="url" defaultValue={defaults?.repoUrl ?? ""} placeholder="https://github.com/owner/repo" aria-invalid={Boolean(errors.repoUrl)} />
@@ -106,7 +136,15 @@ export function ProjectForm({
       </div>
 
       <Field label={f.environment} htmlFor="environment" error={errors.environment} className="max-w-60">
-        <NativeSelect id="environment" name="environment" defaultValue={defaults?.environment ?? "staging"}>
+        <NativeSelect
+          id="environment"
+          name="environment"
+          value={environment}
+          onChange={(event) => {
+            setEnvironmentTouched(true);
+            setEnvironment(event.target.value as Environment);
+          }}
+        >
           {ENVIRONMENTS.map((env) => (
             <option key={env} value={env}>
               {t.enums.environment[env]}

@@ -58,7 +58,7 @@ export function FailureAnalysisPanel({
         <Badge variant="outline">{t.enums.failureCategory[analysis.category]}</Badge>
         <Badge variant={analysis.confidence === "high" ? "info" : "default"}>{fmt(m.confidence, { level: t.enums.confidence[analysis.confidence] })}</Badge>
         <span className="text-xs text-muted-foreground">
-          {analysis.provider} · {analyzedLabel}
+          {analysis.provider === "heuristic" ? t.shell.aiProvider.heuristic : analysis.provider} · {analyzedLabel}
         </span>
         <Button variant="ghost" size="sm" className="ml-auto" onClick={analyze} disabled={loading}>
           {m.reanalyze}

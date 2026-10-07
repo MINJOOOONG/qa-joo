@@ -96,8 +96,16 @@ export interface Repository {
 
   listTestCases(filter?: TestCaseFilter): Promise<TestCase[]>;
   getTestCase(id: string): Promise<TestCase | null>;
-  /** Highest numeric case-key sequence in the project (0 when it has no cases). */
+  /**
+   * Highest case-key sequence ever used in the project: the larger of the highest existing key
+   * and the project's high-water mark (bumped on every create, never lowered by deletes), so
+   * deleted keys are never handed out again. 0 for a project that never had cases.
+   */
   highestCaseNumber(projectId: string): Promise<number>;
+  /** Normalized titles of generated cases the user deleted; generation never suggests them again. */
+  listDismissedCaseTitles(projectId: string): Promise<string[]>;
+  /** Remembers dismissed titles (already normalized); duplicates are ignored. */
+  addDismissedCaseTitles(projectId: string, normalizedTitles: string[]): Promise<void>;
   createTestCase(input: NewTestCase): Promise<TestCase>;
   updateTestCase(id: string, patch: TestCasePatch): Promise<TestCase>;
   setLastResult(id: string, status: ResultStatus | null, at: string | null): Promise<void>;

@@ -18,7 +18,7 @@ export default async function NewProjectPage() {
         title={t.projects.new.title}
         description={t.projects.new.description}
       />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <ProjectForm mode="create" action={createProjectAction} defaults={{ environment: preferences.environment }} />
       </div>
     </>

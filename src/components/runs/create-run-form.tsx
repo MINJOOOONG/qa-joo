@@ -123,7 +123,11 @@ export function CreateRunForm({
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="flex flex-col gap-4">
         <Field label={m.runName} htmlFor="name" required error={errors.name}>
-          <Input id="name" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={Boolean(errors.name)} />
+          <Input id="name" value={name} onChange={(event) => {
+              setName(event.target.value);
+              if (errors.name) setErrors((current) => ({ ...current, name: "" }));
+              setError(null);
+            }} aria-invalid={Boolean(errors.name)} />
         </Field>
         <Field label={m.project} htmlFor="project">
           <NativeSelect id="project" value={projectId} onChange={(event) => router.replace(`${pathname}?project=${event.target.value}`)}>
@@ -198,9 +202,9 @@ export function CreateRunForm({
             <div className="space-y-1">
               <div className="text-xs font-medium text-muted-foreground">{m.type}</div>
               <div className="flex flex-wrap gap-1">
-                {CASE_TYPES.map((type) => (
+                {CASE_TYPES.filter((type) => types.includes(type) || cases.some((c) => c.type === type)).map((type) => (
                   <Chip key={type} active={types.includes(type)} onClick={() => setTypes(toggle(types, type))}>
-                    {t.enums.caseType[type]}
+                    {t.enums.caseType[type]} ({cases.filter((c) => c.type === type).length})
                   </Chip>
                 ))}
               </div>
@@ -232,7 +236,18 @@ export function CreateRunForm({
           <table className="w-full text-[13px]">
             <tbody>
               {(mode === "manual" ? cases : matching).map((c) => (
-                <tr key={c.id} className="border-b last:border-0">
+                <tr
+                  key={c.id}
+                  className={cn("border-b last:border-0", mode === "manual" && "cursor-pointer hover:bg-muted/50")}
+                  onClick={
+                    mode === "manual"
+                      ? (event) => {
+                          if ((event.target as HTMLElement).closest("input")) return;
+                          setManual(toggle(manual, c.id));
+                        }
+                      : undefined
+                  }
+                >
                   {mode === "manual" ? (
                     <td className="w-8 px-2 py-1.5">
                       <input type="checkbox" aria-label={fmt(m.include, { key: c.caseKey })} checked={manual.includes(c.id)} onChange={() => setManual(toggle(manual, c.id))} />

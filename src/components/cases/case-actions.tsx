@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bot, Copy, ListPlus, Pencil, Trash2 } from "lucide-react";
+import { Bot, Copy, ListPlus, Pencil, Trash2, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { NativeSelect } from "@/components/ui/input";
 import { fmt } from "@/lib/i18n/define";
 import { useI18n } from "@/lib/i18n/client";
@@ -15,6 +16,8 @@ import { addToRunAction, deleteCaseAction, duplicateCaseAction } from "@/app/act
 export interface RunOption {
   id: string;
   name: string;
+  /** The case is already in this run (shown disabled). */
+  included?: boolean;
 }
 
 export function CaseActions({
@@ -25,6 +28,8 @@ export function CaseActions({
   activeRuns,
   automationTestId,
   returnTo,
+  editReturnTo,
+  listHref,
 }: {
   caseId: string;
   projectId: string;
@@ -33,13 +38,18 @@ export function CaseActions({
   activeRuns: RunOption[];
   automationTestId: string | null;
   returnTo: string;
+  /** Where the edit form returns to (the drawer URL when opened from the list). */
+  editReturnTo: string;
+  /** The case list URL when shown in the list drawer: a duplicate then opens in that drawer. */
+  listHref: string | null;
 }) {
   const router = useRouter();
   const { t } = useI18n();
   const a = t.cases.actions;
   const [pending, startTransition] = useTransition();
   const [runDialog, setRunDialog] = useState(false);
-  const [runId, setRunId] = useState(activeRuns[0]?.id ?? "");
+  const availableRuns = activeRuns.filter((run) => !run.included);
+  const [runId, setRunId] = useState(availableRuns[0]?.id ?? "");
   const [generating, setGenerating] = useState(false);
 
   const generateAutomation = async () => {
@@ -66,7 +76,7 @@ export function CaseActions({
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <Button variant="outline" size="sm" asChild>
-        <Link href={`/cases/${caseId}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
+        <Link href={`/cases/${caseId}/edit?returnTo=${encodeURIComponent(editReturnTo)}`}>
           <Pencil /> {a.edit}
         </Link>
       </Button>
@@ -76,7 +86,7 @@ export function CaseActions({
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            const result = await duplicateCaseAction(caseId);
+            const result = await duplicateCaseAction(caseId, listHref);
             if (result?.error) toast.error(result.error);
           })
         }
@@ -113,21 +123,24 @@ export function CaseActions({
       </Button>
 
       <Dialog open={runDialog} onOpenChange={setRunDialog}>
-        <DialogContent>
+        {/* Same look as ui/DialogContent, with a localized close label. */}
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/30" />
+          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-5 shadow-lg">
           <DialogHeader>
             <DialogTitle>{fmt(a.dialogTitle, { key: caseKey })}</DialogTitle>
             <DialogDescription>{a.dialogDescription}</DialogDescription>
           </DialogHeader>
-          {activeRuns.length ? (
+          {availableRuns.length ? (
             <NativeSelect value={runId} onChange={(event) => setRunId(event.target.value)} aria-label={a.runLabel}>
               {activeRuns.map((run) => (
-                <option key={run.id} value={run.id}>
-                  {run.name}
+                <option key={run.id} value={run.id} disabled={run.included}>
+                  {run.included ? fmt(a.alreadyIn, { name: run.name }) : run.name}
                 </option>
               ))}
             </NativeSelect>
           ) : (
-            <p className="text-[13px] text-muted-foreground">{a.noActiveRuns}</p>
+            <p className="text-[13px] text-muted-foreground">{activeRuns.length ? a.noOtherRuns : a.noActiveRuns}</p>
           )}
           <DialogFooter>
             <Button variant="outline" asChild>
@@ -149,7 +162,12 @@ export function CaseActions({
               {a.addToRunButton}
             </Button>
           </DialogFooter>
-        </DialogContent>
+          <DialogPrimitive.Close className="absolute right-3 top-3 rounded p-1 text-muted-foreground hover:bg-muted">
+            <XIcon className="size-4" />
+            <span className="sr-only">{a.close}</span>
+          </DialogPrimitive.Close>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
       </Dialog>
     </div>
   );

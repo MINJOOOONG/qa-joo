@@ -66,7 +66,9 @@ jobs:
           alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
           SQL
       - name: Apply schema migration
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261006000000_init.sql
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261006000000_init.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261007000000_case_key_watermark_and_dismissed_titles.sql
       - name: Check constraints
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'

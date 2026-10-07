@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { failureSystemPrompt, heuristicFailureAnalysis, type FailureContext } from "./failure-analyzer";
+import { failureSystemPrompt, filterRegressionSuggestions, heuristicFailureAnalysis, type FailureContext } from "./failure-analyzer";
 import { systemPromptFor } from "./test-case-generator";
 
 const base: FailureContext = {
@@ -37,6 +37,24 @@ describe("heuristic failure analysis", () => {
     const analysis = analyze("Error: expect(locator).toBeVisible() failed\nLocator: getByRole('alert').first()\nExpected: visible\nError: element(s) not found");
     expect(analysis.category).toBe("ui");
     expect(analysis.confidence).toBe("low");
+  });
+
+  it("recognizes strict mode violations as a test-code problem without regression cases", () => {
+    const error =
+      "Error: strict mode violation: getByText('Campaign URL') resolved to 2 elements:\n    1) <label>Campaign URL</label>\n    2) <p role=\"alert\">Campaign URL is invalid</p>";
+    const ko = analyze(error);
+    expect(ko).toMatchObject({ category: "automation_script", suggestedRegressionCases: [] });
+    expect(ko.probableCause).toBe("로케이터가 요소 2개와 일치해 테스트 코드가 실패했어요 (앱 문제 아님).");
+    expect(ko.suggestedNextStep).toContain(".first()");
+    expect(heuristicFailureAnalysis({ ...base, errorMessage: error, locale: "en" }).probableCause).toContain("matched 2 elements");
+  });
+
+  it("does not suggest regression cases that restate the failing case", () => {
+    expect(analyze('Expected string: "Saved"\nReceived string: "Oops"').suggestedRegressionCases).toEqual([]);
+    const same = { title: "Other title", type: "functional" as const, priority: "high" as const, steps: ["Submit"], expectedResult: "Error shown" };
+    const different = { ...same, title: "Submit twice", steps: ["Submit", "Submit again"] };
+    expect(filterRegressionSuggestions("ui", [same, different], base.testCase)).toEqual([different]);
+    expect(filterRegressionSuggestions("automation_script", [different], base.testCase)).toEqual([]);
   });
 
   it("falls back to unknown", () => {

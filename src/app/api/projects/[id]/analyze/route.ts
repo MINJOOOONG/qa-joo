@@ -37,6 +37,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/proj
     return Response.json({
       created: result.created.length,
       caseIds: result.created.map((c) => c.id),
+      existing: result.existingCount,
       summary: result.summary,
       notes: result.notes,
     });

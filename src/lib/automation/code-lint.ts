@@ -16,6 +16,10 @@ const FORBIDDEN: Array<[RegExp, string]> = [
   [/\beval\s*\(|\bnew\s+Function\s*\(/, "eval / new Function is not allowed."],
   [/\b(fs|node:fs|fs\/promises)\b\s*[.'"]/, "File system access is not allowed."],
   [/\bglobalThis\b|\b__dirname\b|\b__filename\b/, "Global / filesystem helpers are not allowed."],
+  [/(^|[^\w$.])fetch\s*\(/, "fetch() is not allowed; specs may only drive the browser."],
+  [/\b(XMLHttpRequest|WebSocket|EventSource)\b/, "XMLHttpRequest / WebSocket / EventSource are not allowed in specs."],
+  [/\(\s*\{[^}]*\brequest\b[^}]*\}|\brequest\s*\.\s*\w+/, "The request API fixture (page.request / { request }) is not allowed; specs may only drive the browser."],
+  [/\bdocument\s*\.\s*cookie\b/, "Reading document.cookie is not allowed."],
 ];
 
 /** Identifiers that reach Node internals however they are spelled (e.g. `x["constructor"]` is caught via the string check). */
@@ -97,6 +101,12 @@ export function lintAutomationCode(code: string): LintReport {
   if (!/\bexpect\s*\(/.test(code)) warnings.push("No expect() assertion found; the test can only fail on errors.");
   if (/waitForTimeout\s*\(/.test(code)) warnings.push("waitForTimeout() makes tests slow and flaky; prefer web-first assertions.");
   if (/page\.goto\(\s*["']https?:\/\//.test(code)) warnings.push("page.goto() uses an absolute URL; prefer relative paths so the run's target URL applies.");
+  if (/file:\/\//i.test(code)) errors.push("file:// URLs are not allowed.");
+  const expectCount = (structure.match(/\bexpect\s*\(/g) ?? []).length;
+  const bodyOnlyCount = (code.match(/\bexpect\s*\(\s*page\.locator\(\s*["']body["']\s*\)\s*\)/g) ?? []).length;
+  if (expectCount > 0 && bodyOnlyCount === expectCount) {
+    warnings.push("This spec does not check the actual result; it only asserts that the page body is visible.");
+  }
   if (/TODO/.test(code)) warnings.push("The spec still contains TODOs to resolve before it is reliable.");
   if (/\.only\s*\(/.test(code)) errors.push("test.only() would skip other tests; remove it.");
   return { errors: Array.from(new Set(errors)), warnings };

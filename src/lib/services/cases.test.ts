@@ -14,7 +14,8 @@ describe("test cases", () => {
     const other = await seedCase(ctx, ab.id);
     expect([first.caseKey, second.caseKey, other.caseKey]).toEqual(["RF-TC-001", "RF-TC-002", "AB-TC-001"]);
     await deleteTestCase(ctx, second.id);
-    expect((await seedCase(ctx, rf.id)).caseKey).toBe("RF-TC-002");
+    // Keys of deleted cases are never reused.
+    expect((await seedCase(ctx, rf.id)).caseKey).toBe("RF-TC-003");
   });
 
   it("validates input", async () => {
@@ -65,7 +66,28 @@ describe("test cases", () => {
     const project = await seedProject(ctx);
     const original = await seedCase(ctx, project.id, { tags: ["smoke"] });
     const copy = await duplicateTestCase(ctx, original.id);
-    expect(copy).toMatchObject({ caseKey: "RF-TC-002", title: `${original.title} (copy)`, tags: ["smoke"], source: "manual" });
+    expect(copy).toMatchObject({ caseKey: "RF-TC-002", title: `${original.title} (사본)`, tags: ["smoke"], source: "manual" });
+    expect((await duplicateTestCase(ctx, original.id, "en")).title).toBe(`${original.title} (copy)`);
+  });
+
+  it("never reuses keys of deleted cases (RF-TC-013/014 deleted → next is RF-TC-015)", async () => {
+    const ctx = memoryContext();
+    const project = await seedProject(ctx);
+    const cases = [];
+    for (let i = 0; i < 14; i += 1) cases.push(await seedCase(ctx, project.id, { title: `Case ${i}` }));
+    await deleteTestCase(ctx, cases[13].id);
+    await deleteTestCase(ctx, cases[12].id);
+    expect((await duplicateTestCase(ctx, cases[0].id)).caseKey).toBe("RF-TC-015");
+  });
+
+  it("remembers deleted generated cases as dismissed titles", async () => {
+    const ctx = memoryContext();
+    const project = await seedProject(ctx);
+    const ai = await seedCase(ctx, project.id, { title: "Reject malformed URL!" }, { source: "ai_generated", reviewStatus: "approved" });
+    const manual = await seedCase(ctx, project.id, { title: "Manual one" });
+    await deleteTestCase(ctx, ai.id);
+    await deleteTestCase(ctx, manual.id);
+    expect(await ctx.repo.listDismissedCaseTitles(project.id)).toEqual(["reject malformed url"]);
   });
 
   it("keeps a duplicated AI draft behind the review gate", async () => {

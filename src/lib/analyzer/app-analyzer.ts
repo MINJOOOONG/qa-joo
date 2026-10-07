@@ -11,6 +11,11 @@ export interface AppAnalyzerOptions {
   maxPages?: number;
 }
 
+/** Crawl key: "/a/" , "/a" and "/a/index.html" are the same page. */
+export function pageKey(url: string): string {
+  return new URL(url).pathname.replace(/\/index\.html?$/i, "").replace(/\/+$/, "") || "/";
+}
+
 async function fetchPageHttp(url: string, allowPrivate: boolean): Promise<{ page: PageInfo; truncated: boolean }> {
   const response = await safeFetch(url, {
     allowPrivate,
@@ -46,14 +51,18 @@ async function fetchPagesBrowser(startUrl: string, maxPages: number, allowPrivat
     const pages: PageInfo[] = [];
     while (queue.length && pages.length < maxPages) {
       const url = queue.shift()!;
-      if (visited.has(url)) continue;
-      visited.add(url);
+      if (visited.has(pageKey(url))) continue;
+      visited.add(pageKey(url));
       try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
         await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
         const info = parsePage(await page.content(), page.url());
         pages.push(info);
-        for (const path of info.internalLinks) queue.push(new URL(path, origin).toString());
+        visited.add(pageKey(info.url));
+        for (const path of info.internalLinks) {
+          const next = new URL(path, origin).toString();
+          if (!visited.has(pageKey(next))) queue.push(next);
+        }
       } catch {
         if (pages.length === 0) throw new AppError("upstream", `Could not render ${url} in the browser.`);
       }
@@ -80,15 +89,18 @@ export async function analyzeApplication(appUrl: string, options: AppAnalyzerOpt
   const visited = new Set<string>();
   while (queue.length && pages.length < maxPages) {
     const url = queue.shift()!;
-    const key = new URL(url).pathname.replace(/\/+$/, "") || "/";
+    const key = pageKey(url);
     if (visited.has(key)) continue;
     visited.add(key);
     try {
       const { page, truncated } = await fetchPageHttp(url, options.allowPrivate);
       if (truncated) warnings.push(`${page.path} was larger than 1.5 MB and was truncated.`);
       pages.push(page);
+      // Redirects may land on another path; never crawl the final page twice.
+      visited.add(pageKey(page.url));
       for (const path of page.internalLinks) {
-        if (!visited.has(path)) queue.push(new URL(path, start.origin).toString());
+        const next = new URL(path, start.origin).toString();
+        if (!visited.has(pageKey(next))) queue.push(next);
       }
     } catch (error) {
       if (pages.length === 0) throw error;

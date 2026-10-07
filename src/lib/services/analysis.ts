@@ -20,6 +20,8 @@ export interface AnalyzeResult {
   created: TestCase[];
   summary: AnalysisSummary;
   notes: string | null;
+  /** Cases already in the project before this run (new cases never duplicate them). */
+  existingCount: number;
 }
 
 export async function runProjectAnalysis(
@@ -59,13 +61,20 @@ export async function runProjectAnalysis(
     );
   }
 
-  const existing = await ctx.repo.listTestCases({ projectId: project.id, reviewStatuses: ["approved", "draft"] });
-  const recentFailures = existing.filter((c) => c.lastResult === "failed").map((c) => `${c.caseKey} ${c.title}`);
+  // Every case title in the project (including rejected drafts) plus generated cases the user
+  // deleted earlier: generation must never suggest any of them again.
+  const [existing, dismissed] = await Promise.all([
+    ctx.repo.listTestCases({ projectId: project.id }),
+    ctx.repo.listDismissedCaseTitles(project.id),
+  ]);
+  const recentFailures = existing
+    .filter((c) => c.reviewStatus !== "rejected" && c.lastResult === "failed")
+    .map((c) => `${c.caseKey} ${c.title}`);
   const generation = await deps.generate({
     projectName: project.name,
     projectDescription: project.description,
     analysis,
-    existingTitles: existing.map((c) => c.title),
+    existingTitles: [...existing.map((c) => c.title), ...dismissed],
     recentFailures,
     focus: input.focus ?? null,
     maxCases: input.maxCases,
@@ -148,7 +157,12 @@ export async function runProjectAnalysis(
     message:
       mode === "gaps"
         ? `AI suggested ${created.length} missing regression case(s) for review`
-        : `Analyzed ${project.name}; ${created.length} AI draft test case(s) await review`,
+        : `Analyzed ${project.name}; added ${created.length} test case(s)`,
   });
-  return { created, summary, notes: generation.notes };
+  return {
+    created,
+    summary,
+    notes: generation.notes,
+    existingCount: existing.filter((c) => c.reviewStatus !== "rejected").length,
+  };
 }

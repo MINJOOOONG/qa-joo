@@ -312,6 +312,16 @@ function ExecutionPanel({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (mode !== "idle") {
+        // The fail/block form is open: result keys would discard it. Esc cancels the form
+        // (captured on window so the sheet does not close as well).
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          setMode("idle");
+        }
+        return;
+      }
       const target = event.target as HTMLElement;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || event.metaKey || event.ctrlKey || event.altKey) return;
       const keys: Record<string, () => void> = {
@@ -328,9 +338,9 @@ function ExecutionPanel({
         handler();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [choose, onNext, onPrev]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [choose, onNext, onPrev, mode]);
 
   return (
     <div className="flex h-full flex-col" data-testid="execution-panel">
@@ -342,10 +352,10 @@ function ExecutionPanel({
           <span className="ml-auto tabular-nums">
             {position} / {total}
           </span>
-          <Button size="icon-sm" variant="ghost" onClick={onPrev} aria-label={m.prevCase}>
+          <Button size="icon-sm" variant="ghost" onClick={onPrev} disabled={position <= 1} aria-label={m.prevCase}>
             <ChevronLeft />
           </Button>
-          <Button size="icon-sm" variant="ghost" onClick={onNext} aria-label={m.nextCase}>
+          <Button size="icon-sm" variant="ghost" onClick={onNext} disabled={position >= total} aria-label={m.nextCase}>
             <ChevronRight />
           </Button>
         </div>
@@ -495,12 +505,12 @@ function ExecutionPanel({
         ) : (
           <div className="grid grid-cols-[1fr_120px] gap-3">
             <Field label={m.commentOptional} htmlFor="comment">
-              <Input id="comment" value={comment} onChange={(event) => setComment(event.target.value)} />
+              <Input id="comment" value={comment} disabled={locked} onChange={(event) => setComment(event.target.value)} />
             </Field>
             <Field label={m.durationSeconds} htmlFor="duration">
               <div className="relative">
                 <Timer className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input id="duration" inputMode="numeric" value={seconds} onChange={(event) => setManualSeconds(event.target.value)} className="pl-7 tabular-nums" />
+                <Input id="duration" inputMode="numeric" disabled={locked} value={locked ? (result?.durationMs != null ? String(Math.round(result.durationMs / 1000)) : "") : seconds} onChange={(event) => setManualSeconds(event.target.value)} className="pl-7 tabular-nums" />
               </div>
             </Field>
           </div>

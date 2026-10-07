@@ -171,6 +171,15 @@ const EXACT: Record<string, string> = {
   "page.goto() uses an absolute URL; prefer relative paths so the run's target URL applies.":
     "page.goto()가 절대 URL을 사용합니다. 실행의 대상 URL이 적용되도록 상대 경로를 사용하세요.",
   "The spec still contains TODOs to resolve before it is reliable.": "스펙에 아직 해결해야 할 TODO가 남아 있습니다.",
+  "fetch() is not allowed; specs may only drive the browser.": "fetch()는 사용할 수 없습니다. 스펙은 브라우저 조작만 할 수 있습니다.",
+  "XMLHttpRequest / WebSocket / EventSource are not allowed in specs.":
+    "스펙에서는 XMLHttpRequest / WebSocket / EventSource를 사용할 수 없습니다.",
+  "The request API fixture (page.request / { request }) is not allowed; specs may only drive the browser.":
+    "request API 픽스처(page.request / { request })는 사용할 수 없습니다. 스펙은 브라우저 조작만 할 수 있습니다.",
+  "Reading document.cookie is not allowed.": "document.cookie는 읽을 수 없습니다.",
+  "file:// URLs are not allowed.": "file:// URL은 사용할 수 없습니다.",
+  "This spec does not check the actual result; it only asserts that the page body is visible.":
+    "이 스펙은 실제 결과를 확인하지 않아요. 페이지 본문이 보이는지만 확인합니다.",
 };
 
 /** Entity names used by `notFound(entity, id)`. */
@@ -234,6 +243,8 @@ const PATTERNS: Pattern[] = [
   // Automation
   [/^Automation run is already (\w+)\.$/, (m) => `자동화 실행이 이미 ${status(m[1])} 상태입니다.`],
   [/^Test case (.+) is not part of this automation run\.$/, (m) => `테스트 케이스 ${m[1]}은(는) 이 자동화 실행에 포함되어 있지 않습니다.`],
+  [/^Approved by (.+)$/, (m) => `${m[1]}님이 승인함`],
+  [/^Rejected by (.+)$/, (m) => `${m[1]}님이 반려함`],
   [/^Fix the blocking issues before approving: ([\s\S]*)$/, (m, l) => `승인하기 전에 차단 문제를 수정하세요: ${sentences(m[1], l)}`],
   [/^Unsupported artifact type (.*)\.$/, (m) => `지원하지 않는 아티팩트 형식입니다: ${m[1]}`],
   [/^Could not store artifact: ([\s\S]*)$/, (m) => `아티팩트를 저장하지 못했습니다: ${m[1]}`],

@@ -8,7 +8,17 @@ import { deleteRunAction, setRunStatusAction } from "@/app/actions/runs";
 import { fmt } from "@/lib/i18n/define";
 import { useI18n } from "@/lib/i18n/client";
 
-export function RunHeaderActions({ runId, status, untested }: { runId: string; status: "active" | "completed"; untested: number }) {
+export function RunHeaderActions({
+  runId,
+  status,
+  untested,
+  afterDelete = "/runs",
+}: {
+  runId: string;
+  status: "active" | "completed";
+  untested: number;
+  afterDelete?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const { t } = useI18n();
   const m = t.runs.headerActions;
@@ -42,7 +52,7 @@ export function RunHeaderActions({ runId, status, untested }: { runId: string; s
         disabled={pending}
         onClick={() => {
           if (!confirm(m.confirmDelete)) return;
-          run(() => deleteRunAction(runId));
+          run(() => deleteRunAction(runId, afterDelete));
         }}
       >
         <Trash2 />

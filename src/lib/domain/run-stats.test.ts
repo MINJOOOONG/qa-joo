@@ -31,7 +31,8 @@ describe("computeRunStats", () => {
   it("formats percentages and durations", () => {
     expect(formatPercent(0.923)).toBe("92%");
     expect(formatPercent(null)).toBe("—");
-    expect(formatDuration(850)).toBe("850ms");
+    expect(formatDuration(850)).toBe("0.8s");
+    expect(formatDuration(248)).toBe("0.2s");
     expect(formatDuration(2400)).toBe("2.4s");
     expect(formatDuration(125_000)).toBe("2m 5s");
     expect(formatDuration(null)).toBe("—");

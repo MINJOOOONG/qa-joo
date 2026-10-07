@@ -8,6 +8,7 @@ import { RunHeaderActions } from "@/components/runs/run-header-actions";
 import { Badge } from "@/components/ui/badge";
 import { isAppError } from "@/lib/errors";
 import { formatPercent } from "@/lib/domain/run-stats";
+import { headers } from "next/headers";
 import { getServiceContext } from "@/lib/server-context";
 import { getRunDetail } from "@/lib/services/runs";
 import { fmt } from "@/lib/i18n/define";
@@ -25,6 +26,10 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
     throw error;
   });
   const { run, project, rows, stats, automationRuns } = detail;
+  // Deleting a run opened from a project's Runs tab returns there instead of the global list.
+  const referer = (await headers()).get("referer") ?? "";
+  const fromProject = /\/projects\/[^/?#]+\/runs(?:[?#]|$)/.test(referer) || query.from === "project";
+  const afterDelete = fromProject ? `/projects/${project.key}/runs` : "/runs";
   const automatedIds = rows.filter((row) => row.mode === "automated").map((row) => row.testCase.id);
   const latestAutomation = automationRuns[0];
 
@@ -66,7 +71,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
               automatedCount={run.status === "active" ? automatedIds.length : 0}
               label={m.runAutomated}
             />
-            <RunHeaderActions runId={run.id} status={run.status} untested={stats.untested} />
+            <RunHeaderActions afterDelete={afterDelete} runId={run.id} status={run.status} untested={stats.untested} />
           </div>
         </div>
         <div className="mt-4 grid max-w-3xl grid-cols-[1fr_auto_auto] items-center gap-6">

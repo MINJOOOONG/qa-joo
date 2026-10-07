@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseLabel } from "@/components/ui/close-label";
 import * as React from "react";
 import { Dialog as SheetPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
@@ -28,7 +29,7 @@ function SheetContent({
         {children}
         <SheetPrimitive.Close className="absolute right-3 top-3 rounded p-1 text-muted-foreground hover:bg-muted">
           <XIcon className="size-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only"><CloseLabel /></span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPrimitive.Portal>

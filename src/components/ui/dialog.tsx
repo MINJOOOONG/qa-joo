@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseLabel } from "@/components/ui/close-label";
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
@@ -23,7 +24,7 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<t
         {children}
         <DialogPrimitive.Close className="absolute right-3 top-3 rounded p-1 text-muted-foreground hover:bg-muted">
           <XIcon className="size-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only"><CloseLabel /></span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>

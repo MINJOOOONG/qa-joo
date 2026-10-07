@@ -12,6 +12,11 @@ describe("parsePage", () => {
     expect(page.headings).toContain("Check a campaign brief");
     expect(page.navLabels).toEqual(["Checker", "About"]);
     expect(page.internalLinks).toEqual(["/sandbox/index.html", "/sandbox/about.html"]);
+    expect(page.links).toEqual([
+      { label: "Checker", path: "/sandbox/index.html" },
+      { label: "About", path: "/sandbox/about.html" },
+    ]);
+    expect(page.resultHeadings).toEqual(["Campaign requirements"]);
   });
 
   it("extracts form fields with labels and constraints", () => {

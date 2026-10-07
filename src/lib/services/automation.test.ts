@@ -11,11 +11,13 @@ import {
   buildRunnerManifest,
   createAutomationRun,
   generateAutomationForCase,
+  latestAutomationResults,
   rejectAutomation,
   saveAutomationCode,
 } from "./automation";
 import type { ServiceContext } from "./context";
-import { createTestRun, getRunDetail, setRunStatus } from "./runs";
+import { recordManualResult } from "./results";
+import { createTestRun, deleteTestRun, getRunDetail, setRunStatus } from "./runs";
 
 const draftDeps = { fetchEntryPage: async () => null, generate: async (input: Parameters<typeof heuristicAutomationDraft>[0]) => heuristicAutomationDraft(input) };
 const noDispatch = vi.fn(async () => ({ externalUrl: null, note: "external" }));
@@ -121,5 +123,33 @@ describe("automation workflow", () => {
     const created = await addSuggestedRegressionCases(ctx, result.id, [0, 1, 0]);
     expect(created).toHaveLength(2);
     expect(created.every((c) => c.reviewStatus === "approved" && c.source === "ai_generated" && c.tags.includes("from-failure"))).toBe(true);
+  });
+
+  it("updates the case's last result from automation runs without a linked test run", async () => {
+    await approvedSpec();
+    const run = await createAutomationRun(ctx, { projectId: project.id }, runOptions);
+    await applyRunnerCallback(ctx, { automationRunId: run.id, status: "failed", results: [{ testCaseId: testCase.id, status: "failed", errorMessage: "boom" }] });
+    expect((await ctx.repo.getTestCase(testCase.id))?.lastResult).toBe("failed");
+    expect((await latestAutomationResults(ctx, [testCase.id])).get(testCase.id)?.status).toBe("failed");
+  });
+
+  it("keeps automation failures after the linked test run is deleted and ignores manual skips in the automation column", async () => {
+    await approvedSpec();
+    const testRun = await createTestRun(ctx, { projectId: project.id, name: "Regression", environment: "staging", selection: { mode: "all" } });
+    const run = await createAutomationRun(ctx, { projectId: project.id, testRunId: testRun.id }, runOptions);
+    await applyRunnerCallback(ctx, { automationRunId: run.id, status: "failed", results: [{ testCaseId: testCase.id, status: "failed", errorMessage: "boom" }] });
+    await deleteTestRun(ctx, testRun.id);
+    expect((await ctx.repo.getTestCase(testCase.id))?.lastResult).toBe("failed");
+
+    const manualRun = await createTestRun(ctx, { projectId: project.id, name: "Manual", environment: "staging", selection: { mode: "all" } });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 60_000); // the manual skip happens later than the automation run
+    try {
+      await recordManualResult(ctx, { testRunId: manualRun.id, testCaseId: testCase.id, status: "skipped" });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect((await ctx.repo.getTestCase(testCase.id))?.lastResult).toBe("skipped");
+    expect((await latestAutomationResults(ctx, [testCase.id])).get(testCase.id)?.status).toBe("failed");
   });
 });

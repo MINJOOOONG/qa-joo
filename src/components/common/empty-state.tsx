@@ -13,7 +13,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed px-6 py-12 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed px-4 py-12 sm:px-6 text-center">
       <Icon className="size-6 text-muted-foreground" />
       <p className="text-sm font-medium">{title}</p>
       {description ? <p className="max-w-md text-[13px] text-muted-foreground">{description}</p> : null}

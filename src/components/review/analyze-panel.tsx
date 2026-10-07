@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, ScanSearch, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -36,11 +37,13 @@ export function AnalyzePanel({
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const started = useRef(false);
 
   const run = async (runMode = mode) => {
     setRunning(true);
     setError(null);
+    setNotice(null);
     setPhase(0);
     const timer = setInterval(() => setPhase((value) => Math.min(value + 1, PHASES.length - 1)), 2500);
     try {
@@ -54,11 +57,14 @@ export function AnalyzePanel({
         setError(body?.error?.message ?? a.failed);
         return;
       }
-      toast.success(
-        body.created
-          ? fmt(a.created, { count: body.created })
-          : a.noneNeeded,
-      );
+      if (!body.created) {
+        // Nothing new: stay here and say why instead of silently redirecting.
+        const message = fmt(a.noneNeeded, { count: Number(body.existing ?? 0) });
+        setNotice(message);
+        toast.info(message);
+        return;
+      }
+      toast.success(fmt(a.created, { count: body.created }));
       // Generated cases are ready to use right away; show them in the test case list.
       router.push(casesHref);
     } catch {
@@ -114,6 +120,14 @@ export function AnalyzePanel({
       {running ? (
         <p className="mt-2 flex items-center gap-2 text-[13px] text-zinc-700" role="status">
           <LoaderCircle className="size-3.5 animate-spin" /> {a.phases[PHASES[phase]]}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="mt-2 text-[13px] text-zinc-700" role="status" data-testid="analyze-notice">
+          {notice}{" "}
+          <Link href={casesHref} className="font-medium text-primary underline-offset-2 hover:underline">
+            {a.goToCases}
+          </Link>
         </p>
       ) : null}
       {error ? (

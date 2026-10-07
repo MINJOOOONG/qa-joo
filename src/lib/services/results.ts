@@ -8,13 +8,21 @@ import type { ServiceContext } from "./context";
 
 const NO_EVIDENCE: Evidence = { screenshotUrl: null, traceUrl: null, logUrl: null, networkLogUrl: null };
 
-/** Recomputes the denormalized `lastResult` on a case from its most recent executed result. */
+/**
+ * Recomputes the denormalized `lastResult` on a case from its most recent executed result —
+ * manual/mirrored test-run results and automation results (with or without a linked test run).
+ */
 export async function refreshLastResult(ctx: ServiceContext, testCaseId: string): Promise<void> {
-  const results = await ctx.repo.listResults({ testCaseId });
-  const latest = results
-    .filter((r) => r.status !== "untested" && r.executedAt)
-    .sort((a, b) => (b.executedAt ?? "").localeCompare(a.executedAt ?? ""))[0];
-  await ctx.repo.setLastResult(testCaseId, latest?.status ?? null, latest?.executedAt ?? null);
+  const [results, automation] = await Promise.all([
+    ctx.repo.listResults({ testCaseId }),
+    ctx.repo.listAutomationResults({ testCaseId }),
+  ]);
+  const candidates: Array<{ status: TestResult["status"]; at: string }> = [
+    ...results.filter((r) => r.status !== "untested" && r.executedAt).map((r) => ({ status: r.status, at: r.executedAt! })),
+    ...automation.map((r) => ({ status: r.status, at: r.createdAt })),
+  ];
+  const latest = candidates.sort((a, b) => b.at.localeCompare(a.at))[0];
+  await ctx.repo.setLastResult(testCaseId, latest?.status ?? null, latest?.at ?? null);
 }
 
 async function loadRunAndMembership(ctx: ServiceContext, testRunId: string, testCaseId: string) {

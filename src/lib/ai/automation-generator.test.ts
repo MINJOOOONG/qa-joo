@@ -33,8 +33,16 @@ describe("Playwright draft generation", () => {
 
   it("splits compound steps and builds assertions from quoted text", () => {
     expect(splitCompoundStep('Enter "x" in "URL" and click "Go"')).toEqual(['Enter "x" in "URL"', 'click "Go"']);
-    expect(assertionFor("A message 'Saved successfully' appears.")).toEqual(['await expect(page.getByText("Saved successfully")).toBeVisible();']);
-    expect(assertionFor("The user's dashboard shows \"Welcome back\".")).toEqual(['await expect(page.getByText("Welcome back")).toBeVisible();']);
+    expect(assertionFor("A message 'Saved successfully' appears.")).toEqual([
+      "// Expected: A message 'Saved successfully' appears.",
+      'await expect(page.getByRole("alert")).toHaveCount(0);',
+      'await expect(page.getByText("Saved successfully").first()).toBeVisible();',
+    ]);
+    expect(assertionFor("The user's dashboard shows \"Welcome back\".")).toContain('await expect(page.getByText("Welcome back").first()).toBeVisible();');
+    expect(assertionFor('An error "Enter a valid URL" is shown.')).toEqual([
+      '// Expected: An error "Enter a valid URL" is shown.',
+      'await expect(page.getByText("Enter a valid URL").first()).toBeVisible();',
+    ]);
     expect(assertionFor("It's the user's page.\nNext line")[0]).toBe("// TODO: assert the expected result — It's the user's page. Next line");
   });
 
@@ -80,5 +88,40 @@ describe("Korean test steps", () => {
 
   it("splits Korean compound steps", () => {
     expect(splitCompoundStep('"A"에 "x"을 입력하고 "Go" 버튼을 클릭한다.')).toEqual(['"A"에 "x"을 입력하', '"Go" 버튼을 클릭한다.']);
+  });
+});
+
+describe("expected-result assertions", () => {
+  it("asserts no alert for happy paths instead of an error alert", () => {
+    const lines = assertionFor("요청이 성공하고 결과가 오류 없이 표시된다.");
+    expect(lines).toContain('await expect(page.getByRole("alert")).toHaveCount(0);');
+    expect(lines.join("\n")).not.toContain("toBeVisible");
+    expect(assertionFor("The request succeeds and the report is displayed without errors.")).toContain(
+      'await expect(page.getByRole("alert")).toHaveCount(0);',
+    );
+    expect(assertionFor("No error is shown.")).toContain('await expect(page.getByRole("alert")).toHaveCount(0);');
+  });
+
+  it("checks quoted text on success with .first()", () => {
+    expect(assertionFor('"분석 결과" 제목이 오류 없이 표시된다.')).toEqual([
+      '// Expected: "분석 결과" 제목이 오류 없이 표시된다.',
+      'await expect(page.getByRole("alert")).toHaveCount(0);',
+      'await expect(page.getByText("분석 결과").first()).toBeVisible();',
+    ]);
+  });
+
+  it("still asserts the alert for real error expectations", () => {
+    expect(assertionFor("입력란에 검증 오류가 표시된다.")).toContain('await expect(page.getByRole("alert").first()).toBeVisible();');
+  });
+
+  it("fills the happy-path step form and does not double quotes in review notes", () => {
+    const happy = heuristicAutomationDraft({
+      testCase: { ...testCase, steps: ['"Campaign URL"에 "https://example.com/?utm_source=a"을 입력한다.', '"Campaign URL"에 값을 입력한다.'] },
+      entryPath: "/",
+      page,
+    });
+    expect(happy.code).toContain('await page.getByLabel(/Campaign URL/i).fill("https://example.com/?utm_source=a");');
+    expect(happy.code).toContain('// REVIEW: 입력값을 정하세요: "Campaign URL"에 값을 입력한다');
+    expect(happy.code).not.toContain('""Campaign URL"');
   });
 });

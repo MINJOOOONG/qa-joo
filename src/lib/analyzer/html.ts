@@ -66,13 +66,17 @@ export function parsePage(html: string, pageUrl: string): PageInfo {
   const base = new URL(pageUrl);
 
   const internalLinks: string[] = [];
+  const links: Array<{ label: string; path: string }> = [];
   for (const anchor of root.querySelectorAll("a[href]")) {
     const href = anchor.getAttribute("href") ?? "";
     if (!href || href.startsWith("#") || /^(mailto|tel|javascript|data):/i.test(href)) continue;
     try {
       const target = new URL(href, base);
       if (target.origin !== base.origin || ASSET_EXTENSION.test(target.pathname)) continue;
-      internalLinks.push(target.pathname.replace(/\/+$/, "") || "/");
+      const path = target.pathname.replace(/\/+$/, "") || "/";
+      internalLinks.push(path);
+      const label = clean(anchor.getAttribute("aria-label"), 60) ?? clean(anchor.text, 60);
+      if (label && !links.some((link) => link.label === label && link.path === path)) links.push({ label, path });
     } catch {
       // ignore malformed hrefs
     }
@@ -117,6 +121,22 @@ export function parsePage(html: string, pageUrl: string): PageInfo {
     .map(buttonLabel)
     .filter((label): label is string => Boolean(label));
 
+  const resultHeadings = unique(
+    root
+      .querySelectorAll("section, div, article, aside, output")
+      .filter((element) => {
+        const marker = `${element.getAttribute("id") ?? ""} ${element.getAttribute("class") ?? ""}`;
+        return (
+          element.tagName === "OUTPUT" ||
+          element.hasAttribute("aria-live") ||
+          (element.getAttribute("role") === "status" && /result|output/i.test(marker)) ||
+          /(^|[\s_-])(result|results|output)([\s_-]|$)/i.test(marker)
+        );
+      })
+      .flatMap((element) => element.querySelectorAll("h1, h2, h3, h4").map((heading) => clean(heading.text, 120)))
+      .filter((value): value is string => Boolean(value)),
+  ).slice(0, 5);
+
   const body = root.querySelector("body") ?? root;
   const text = body.text.replace(/\s+/g, " ").trim();
   const scriptCount = root.querySelectorAll("script").length;
@@ -134,6 +154,8 @@ export function parsePage(html: string, pageUrl: string): PageInfo {
         .filter((value): value is string => Boolean(value)),
     ).slice(0, 25),
     internalLinks: unique(internalLinks).slice(0, 60),
+    links: links.slice(0, 60),
+    resultHeadings,
     navLabels: unique(navLabels).slice(0, 25),
     buttons: unique(buttons).slice(0, 30),
     forms: forms.slice(0, 10),
