@@ -6,20 +6,17 @@ import { getConfig } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-const AI_LABELS = { anthropic: "Anthropic", openai: "OpenAI", heuristic: "Heuristic" } as const;
-
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const config = getConfig();
-  const workspaceLabel =
-    config.dataStore === "supabase" ? "Supabase" : config.demoMode ? "Demo (memory)" : "Local (memory)";
+  const workspace = config.dataStore === "supabase" ? "supabase" : config.demoMode ? "demo" : "local";
 
   return (
     <div className="min-h-screen">
       <Topbar
-        workspaceLabel={workspaceLabel}
-        aiLabel={AI_LABELS[config.ai.provider]}
+        workspace={workspace}
+        aiProvider={config.ai.provider}
         user={user}
         canSignOut={config.authEnabled}
         signOutAction={signOut}
