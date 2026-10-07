@@ -28,24 +28,58 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button asChild>
-          <Link href={`/projects/${project.key}/review?autostart=1`}>
-            <ScanSearch /> {l.analyzeProject}
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href={`/projects/${project.key}/review?mode=gaps`}>
-            <Sparkles /> {l.generateCases}
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href={`/runs/new?project=${project.id}`}>
-            <ListPlus /> {l.createRun}
-          </Link>
-        </Button>
-        <RunAutomationButton projectId={project.id} automatedCount={overview.automatedCount} />
-      </div>
+      <section aria-labelledby="steps-title" className="rounded-lg border bg-muted/30 p-4">
+        <h2 id="steps-title" className="mb-3 text-sm font-semibold">{l.steps.title}</h2>
+        <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              text: l.steps.s1,
+              action: (
+                <Button size="sm" asChild>
+                  <Link href={`/projects/${project.key}/review?autostart=1`}>
+                    <ScanSearch /> {l.analyzeProject}
+                  </Link>
+                </Button>
+              ),
+            },
+            {
+              text: l.steps.s2,
+              action: (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/projects/${project.key}/review?mode=gaps`}>
+                    <Sparkles /> {l.generateCases}
+                  </Link>
+                </Button>
+              ),
+            },
+            {
+              text: l.steps.s3,
+              action: (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/runs/new?project=${project.id}`}>
+                    <ListPlus /> {l.createRun}
+                  </Link>
+                </Button>
+              ),
+            },
+            {
+              text: l.steps.s4,
+              action: (
+                <RunAutomationButton projectId={project.id} automatedCount={overview.automatedCount} label={l.runAutomation} size="sm" />
+              ),
+            },
+          ].map((step, index) => (
+            <li key={index} className="flex flex-col gap-2 rounded-md border bg-card p-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                {fmt(l.steps.step, { n: index + 1 })}
+              </span>
+              <p className="flex-1 text-xs leading-relaxed text-muted-foreground">{step.text}</p>
+              <div>{step.action}</div>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs text-muted-foreground">{l.steps.approveHint}</p>
+      </section>
 
       <KpiStrip>
         <Kpi label={l.kpiCases} value={overview.caseCount} hint={overview.draftCount ? fmt(l.draftsWaiting, { count: overview.draftCount }) : l.approved} />
