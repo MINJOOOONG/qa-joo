@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { TestCaseFilter } from "@/lib/db/repository";
 import { flattenSections, sectionPaths, sectionSubtree } from "@/lib/domain/sections";
-import type { Project, Section } from "@/lib/domain/types";
+import type { ResultStatus } from "@/lib/domain/constants";
+import type { Project, Section, TestCase } from "@/lib/domain/types";
 import { getCaseDetail } from "@/lib/services/cases";
 import type { ServiceContext } from "@/lib/services/context";
 import { cn } from "@/lib/utils";
@@ -51,12 +52,28 @@ export async function CaseExplorer({
     for (const p of projects) for (const [id, path] of sectionPaths(await ctx.repo.listSections(p.id))) allSectionPaths.set(id, path);
   }
 
+  // Optional run lens: show each case's result in one test run (and only the cases in that run).
+  const projectRuns = project ? await ctx.repo.listTestRuns({ projectId: project.id }) : [];
+  const selectedRun = query.run ? (projectRuns.find((run) => run.id === query.run) ?? null) : null;
+  const runResults = new Map<string, ResultStatus>();
+  let runCaseIds: Set<string> | null = null;
+  if (selectedRun) {
+    const [runCases, results] = await Promise.all([
+      ctx.repo.listRunCases(selectedRun.id),
+      ctx.repo.listResults({ testRunId: selectedRun.id }),
+    ]);
+    runCaseIds = new Set(runCases.map((rc) => rc.testCaseId));
+    for (const result of results) runResults.set(result.testCaseId, result.status);
+  }
+  const resultOf = (testCase: TestCase): ResultStatus | null =>
+    selectedRun ? (runResults.get(testCase.id) ?? "untested") : testCase.lastResult;
+
   const filter: TestCaseFilter = {
     projectId: project?.id,
     types: query.type ? [query.type] : undefined,
     priorities: query.priority ? [query.priority] : undefined,
     automationStatuses: query.automation ? [query.automation] : undefined,
-    lastResults: query.result ? [query.result] : undefined,
+    lastResults: query.result && !selectedRun ? [query.result] : undefined,
     sources: query.source ? [query.source] : undefined,
     reviewStatuses: query.review ? [query.review] : ["approved", "draft"],
     search: query.q || undefined,
@@ -67,6 +84,12 @@ export async function CaseExplorer({
     const subtree = sectionSubtree(sections, query.section);
     cases = cases.filter((c) => c.sectionId !== null && subtree.has(c.sectionId));
   }
+  if (runCaseIds) {
+    const inRun = runCaseIds;
+    cases = cases.filter((c) => inRun.has(c.id) && (!query.result || resultOf(c) === query.result));
+  }
+  const resultCounts = new Map<ResultStatus, number>();
+  if (selectedRun) for (const c of cases) resultCounts.set(resultOf(c)!, (resultCounts.get(resultOf(c)!) ?? 0) + 1);
 
   const detail = query.caseId ? await getCaseDetail(ctx, query.caseId).catch(() => null) : null;
   const activeRuns = detail
@@ -81,6 +104,7 @@ export async function CaseExplorer({
         <CaseFilters
           showProject={!fixedProject}
           projects={projects.map((p) => ({ value: p.key, label: `${p.key} · ${p.name}` }))}
+          runs={projectRuns.map((run) => ({ value: run.id, label: run.name }))}
           sections={flattenSections(sections).map((node) => ({ value: node.section.id, label: `${"— ".repeat(node.depth)}${node.section.name}` }))}
         />
         <div className="flex items-center gap-2">
@@ -92,6 +116,19 @@ export async function CaseExplorer({
           </Button>
         </div>
       </div>
+
+      {selectedRun ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border bg-muted/30 px-3 py-2 text-xs" data-testid="run-summary">
+          <Link href={`/runs/${selectedRun.id}`} className="font-medium hover:underline">
+            {fmt(e.runSummary, { run: selectedRun.name, count: cases.length })}
+          </Link>
+          {(["passed", "failed", "blocked", "skipped", "untested"] as const).map((status) => (
+            <span key={status} className="tabular-nums text-muted-foreground">
+              {t.enums.resultStatus[status]} <span className="font-semibold text-foreground">{resultCounts.get(status) ?? 0}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {cases.length === 0 ? (
         <EmptyState
@@ -118,7 +155,7 @@ export async function CaseExplorer({
                 <TableHead>{e.columns.type}</TableHead>
                 <TableHead>{e.columns.priority}</TableHead>
                 <TableHead>{e.columns.automation}</TableHead>
-                <TableHead>{e.columns.lastResult}</TableHead>
+                <TableHead>{selectedRun ? fmt(e.resultIn, { run: selectedRun.name }) : e.columns.lastResult}</TableHead>
                 <TableHead>{e.columns.updated}</TableHead>
               </TableRow>
             </TableHeader>
@@ -155,7 +192,7 @@ export async function CaseExplorer({
                       <AutomationBadge status={testCase.automationStatus} />
                     </TableCell>
                     <TableCell>
-                      <ResultBadge status={testCase.lastResult} />
+                      <ResultBadge status={resultOf(testCase)} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatRelative(testCase.updatedAt, locale)}</TableCell>
                   </TableRow>

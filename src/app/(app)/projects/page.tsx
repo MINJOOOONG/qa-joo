@@ -6,7 +6,6 @@ import { EnvironmentBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
 import { formatPercent } from "@/lib/domain/run-stats";
 import { getServiceContext } from "@/lib/server-context";
-import { fmt } from "@/lib/i18n/define";
 import { formatRelative } from "@/lib/i18n/format";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -94,14 +93,6 @@ export default async function ProjectsPage() {
                     <div className="absolute left-3 top-3">
                       <EnvironmentBadge environment={project.environment} />
                     </div>
-                    {s.drafts ? (
-                      <Link
-                        href={`/projects/${project.key}/review`}
-                        className="absolute right-3 top-3 z-10 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-white"
-                      >
-                        {fmt(l.draftsChip, { count: s.drafts })}
-                      </Link>
-                    ) : null}
                   </div>
                   <div className="flex flex-1 flex-col gap-3 p-4">
                     <div>

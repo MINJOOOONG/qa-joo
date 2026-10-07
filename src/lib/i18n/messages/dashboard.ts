@@ -41,7 +41,7 @@ export const dashboard = defineMessages({
     allProjects: "전체 프로젝트",
     welcomeTitle: "QA JOO에 오신 것을 환영해요",
     welcomeDescription:
-      "첫 프로젝트를 만들어 보세요. 애플리케이션 URL이나 공개 GitHub 저장소를 붙여넣으면 QA JOO가 검토할 첫 테스트 케이스 초안을 작성해요.",
+      "첫 프로젝트를 만들어 보세요. 애플리케이션 URL이나 공개 GitHub 저장소를 붙여넣으면 QA JOO가 첫 테스트 케이스를 만들어요.",
     newProject: "새 프로젝트",
     overview: "품질 개요 · {scope}",
     kpi: {

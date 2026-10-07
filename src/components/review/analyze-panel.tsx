@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { LoaderCircle, ScanSearch, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n/client";
 const PHASES = ["fetching", "reading", "drafting", "saving"] as const;
 
 export function AnalyzePanel({
+  casesHref,
   projectId,
   autostart,
   initialMode,
@@ -19,6 +20,8 @@ export function AnalyzePanel({
   sources,
 }: {
   projectId: string;
+  /** Where to go after generation (the project's test case list). */
+  casesHref: string;
   autostart: boolean;
   initialMode: "analyze" | "gaps";
   providerLabel: string;
@@ -27,7 +30,6 @@ export function AnalyzePanel({
   const router = useRouter();
   const { t } = useI18n();
   const a = t.review.analyze;
-  const pathname = usePathname();
   const [mode, setMode] = useState<"analyze" | "gaps">(initialMode);
   const [focus, setFocus] = useState("");
   const [maxCases, setMaxCases] = useState("12");
@@ -57,8 +59,8 @@ export function AnalyzePanel({
           ? fmt(a.created, { count: body.created })
           : a.noneNeeded,
       );
-      router.replace(pathname, { scroll: false });
-      router.refresh();
+      // Generated cases are ready to use right away; show them in the test case list.
+      router.push(casesHref);
     } catch {
       setError(a.networkError);
     } finally {

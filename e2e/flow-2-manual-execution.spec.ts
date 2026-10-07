@@ -7,7 +7,7 @@ test("Flow 2: open a case, PASS jumps to the next untested case, FAIL requires t
   await page.getByLabel("Run Name").fill(runName);
   await page.getByTestId("create-run-submit").click();
   await expect(page.getByTestId("run-name")).toHaveText(runName);
-  await expect(page.getByTestId("summary-untested")).toContainText("12");
+  await expect(page.getByTestId("summary-untested")).toContainText("14");
 
   const firstRow = page.getByTestId("run-row").first();
   const firstKey = (await firstRow.getAttribute("data-case-key"))!;
@@ -35,7 +35,7 @@ test("Flow 2: open a case, PASS jumps to the next untested case, FAIL requires t
 
   await expect(page.locator('[data-testid=run-row][data-result="passed"]')).toHaveCount(1);
   await expect(page.locator('[data-testid=run-row][data-result="failed"]')).toHaveCount(1);
-  await expect(page.getByTestId("run-progress")).toContainText("2/12");
+  await expect(page.getByTestId("run-progress")).toContainText("2/14");
   await expect(page.getByTestId("run-pass-rate")).toHaveText("50%");
 });
 

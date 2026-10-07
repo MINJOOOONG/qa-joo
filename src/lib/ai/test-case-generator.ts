@@ -1,5 +1,6 @@
 import { CASE_TYPES, UNHAPPY_CASE_TYPES } from "@/lib/domain/constants";
 import type { ProjectAnalysis } from "@/lib/analyzer/types";
+import { heuristicSiteSummary } from "./site-summary";
 import { balanceCases, dedupeCases, heuristicTestCases, unhappyShare } from "./heuristic-cases";
 import type { LlmProvider } from "./provider";
 import { generatedCasesSchemaFor, type GeneratedCase } from "./schemas";
@@ -23,6 +24,8 @@ export interface GenerationOutput {
   provider: string;
   model: string | null;
   notes: string | null;
+  /** Plain-language description of the analyzed site, shown on the project overview. */
+  siteSummary: string;
   warnings: string[];
 }
 
@@ -161,6 +164,7 @@ export async function generateTestCases(input: GenerationInput, provider: LlmPro
       provider: "heuristic",
       model: null,
       notes: "No AI provider configured: cases were derived by QA JOO's rule-based generator from the analysis signals.",
+      siteSummary: heuristicSiteSummary(input.projectName, input.analysis, locale),
       warnings,
     };
   }
@@ -195,6 +199,7 @@ export async function generateTestCases(input: GenerationInput, provider: LlmPro
     provider: provider.name,
     model: provider.model,
     notes: output.coverageNotes ? clip(output.coverageNotes, 600) : null,
+    siteSummary: clip(output.siteSummary ?? "", 900) || heuristicSiteSummary(input.projectName, input.analysis, locale),
     warnings,
   };
 }

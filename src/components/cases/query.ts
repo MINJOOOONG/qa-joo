@@ -26,6 +26,8 @@ export interface CaseQuery {
   review: ReviewStatus | null;
   q: string;
   caseId: string | null;
+  /** Show results from this test run instead of each case's latest result. */
+  run: string | null;
 }
 
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? null;
@@ -45,6 +47,7 @@ export function parseCaseQuery(params: CaseSearchParams): CaseQuery {
     review: pick(one(params.review), REVIEW_STATUSES),
     q: (one(params.q) ?? "").slice(0, 100),
     caseId: one(params.case),
+    run: one(params.run),
   };
 }
 

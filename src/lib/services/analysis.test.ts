@@ -37,15 +37,16 @@ const deps = (overrides: Partial<AnalysisDeps> = {}): AnalysisDeps => ({
 });
 
 describe("project analysis → AI draft test cases", () => {
-  it("saves generated cases as AI drafts grouped into sections", async () => {
+  it("saves generated cases ready to use, grouped into sections", async () => {
     const ctx = memoryContext();
     const project = await seedProject(ctx);
     const result = await runProjectAnalysis(ctx, deps(), { projectId: project.id, maxCases: 8 });
     expect(result.created.length).toBeGreaterThan(3);
-    expect(result.created.every((c) => c.source === "ai_generated" && c.reviewStatus === "draft")).toBe(true);
+    expect(result.created.every((c) => c.source === "ai_generated" && c.reviewStatus === "approved")).toBe(true);
     expect(result.created.every((c) => c.sectionId !== null)).toBe(true);
     expect(result.summary).toMatchObject({ provider: "heuristic", generatedCount: result.created.length, signals: { pages: 1, forms: 1, inputs: 1 } });
     expect((await ctx.repo.getProject(project.id))?.lastAnalysis?.generatedCount).toBe(result.created.length);
+    expect(result.summary.siteSummary).toBeTruthy();
   });
 
   it("does not duplicate existing cases on a second pass", async () => {

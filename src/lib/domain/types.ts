@@ -22,6 +22,8 @@ export type ISODate = string;
 /** Compact record of what the analyzer found, persisted on the project. */
 export interface AnalysisSummary {
   analyzedAt: ISODate;
+  /** What the site is, in the language used at analysis time (absent on older analyses). */
+  siteSummary?: string | null;
   provider: string;
   model: string | null;
   sources: Array<{

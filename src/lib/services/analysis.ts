@@ -90,7 +90,7 @@ export async function runProjectAnalysis(
           priority: draft.priority,
           tags: draft.tags,
         },
-        { source: "ai_generated", reviewStatus: "draft", aiRationale: draft.rationale || null, silent: true },
+        { source: "ai_generated", reviewStatus: "approved", aiRationale: draft.rationale || null, silent: true },
       ),
     );
   }
@@ -98,6 +98,7 @@ export async function runProjectAnalysis(
   const pages = analysis.app?.pages ?? [];
   const summary: AnalysisSummary = {
     analyzedAt: new Date().toISOString(),
+    siteSummary: generation.siteSummary,
     provider: generation.provider,
     model: generation.model,
     sources: [

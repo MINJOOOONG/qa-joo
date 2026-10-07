@@ -48,7 +48,7 @@ describe("POST /api/projects/:id/analyze (TC generation API)", () => {
     expect((await call("missing", {})).status).toBe(404);
   });
 
-  it("creates AI drafts and returns the analysis summary", async () => {
+  it("creates AI-generated cases and returns the analysis summary", async () => {
     const project = await seedProject(memoryContext(repo), "BB");
     const response = await call(project.id, { maxCases: 6, focus: "checkout validation" });
     expect(response.status).toBe(200);
@@ -56,7 +56,7 @@ describe("POST /api/projects/:id/analyze (TC generation API)", () => {
     expect(body.created).toBeGreaterThan(0);
     expect(body.created).toBeLessThanOrEqual(6);
     expect(body.summary).toMatchObject({ provider: "heuristic", signals: { forms: 1 } });
-    const drafts = await repo.listTestCases({ projectId: project.id, reviewStatuses: ["draft"] });
+    const drafts = await repo.listTestCases({ projectId: project.id, sources: ["ai_generated"] });
     expect(drafts).toHaveLength(body.created);
     expect(drafts.some((c) => c.type === "negative" && c.title.includes("Email"))).toBe(true);
   });

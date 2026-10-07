@@ -5,8 +5,7 @@ import { loadProject } from "@/lib/loaders";
 
 export default async function ProjectLayout({ children, params }: LayoutProps<"/projects/[key]">) {
   const { key } = await params;
-  const { ctx, project } = await loadProject(key);
-  const drafts = await ctx.repo.listTestCases({ projectId: project.id, reviewStatuses: ["draft"] });
+  const { project } = await loadProject(key);
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3 px-6 pb-3 pt-4">
@@ -30,7 +29,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
           </div>
         </div>
       </div>
-      <ProjectTabs projectKey={project.key} draftCount={drafts.length} />
+      <ProjectTabs projectKey={project.key} />
       {children}
     </>
   );

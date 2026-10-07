@@ -496,7 +496,7 @@ export async function addSuggestedRegressionCases(ctx: ServiceContext, resultId:
         },
         {
           source: "ai_generated",
-          reviewStatus: "draft",
+          reviewStatus: "approved",
           aiRationale: `Suggested after ${source.caseKey} failed: ${result.analysis.probableCause}`.slice(0, 600),
           silent: true,
         },

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
-export function ProjectTabs({ projectKey, draftCount }: { projectKey: string; draftCount: number }) {
+export function ProjectTabs({ projectKey }: { projectKey: string }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const l = t.projects.tabs;
@@ -13,7 +13,6 @@ export function ProjectTabs({ projectKey, draftCount }: { projectKey: string; dr
   const tabs = [
     { href: base, label: l.overview, exact: true },
     { href: `${base}/cases`, label: l.cases },
-    { href: `${base}/review`, label: l.review, count: draftCount },
     { href: `${base}/runs`, label: l.runs },
     { href: `${base}/automation`, label: l.automation },
     { href: `${base}/activity`, label: l.activity },
@@ -34,9 +33,6 @@ export function ProjectTabs({ projectKey, draftCount }: { projectKey: string; dr
             )}
           >
             {tab.label}
-            {tab.count ? (
-              <span className="rounded bg-violet-100 px-1 text-[11px] font-medium text-violet-700">{tab.count}</span>
-            ) : null}
           </Link>
         );
       })}

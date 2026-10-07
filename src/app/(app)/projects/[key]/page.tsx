@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CheckCircle2, CircleAlert, ListPlus, ScanSearch, Sparkles } from "lucide-react";
-import { ActivityList } from "@/components/activity/activity-list";
 import { RunAutomationButton } from "@/components/automation/run-automation-button";
 import { Kpi, KpiStrip } from "@/components/common/kpi";
 import { SectionTitle } from "@/components/common/page-header";
@@ -16,12 +15,13 @@ import { getI18n } from "@/lib/i18n/server";
 export default async function ProjectOverviewPage({ params }: PageProps<"/projects/[key]">) {
   const { key } = await params;
   const { ctx, project } = await loadProject(key);
-  const [overview, runs, activities] = await Promise.all([
+  const [overview, runs] = await Promise.all([
     getProjectOverview(ctx, project),
     listRunSummaries(ctx, { projectId: project.id }),
-    ctx.repo.listActivities({ projectId: project.id, limit: 6 }),
   ]);
   const analysis = project.lastAnalysis;
+  // The demo seed stores only a site summary; the analysis card needs a real crawl.
+  const crawled = analysis && analysis.sources.length > 0 ? analysis : null;
   const { t, locale } = await getI18n();
   const l = t.projects.overview;
 
@@ -58,7 +58,7 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
       </ol>
 
       <KpiStrip columns={4}>
-        <Kpi label={l.kpiCases} value={overview.caseCount} hint={overview.draftCount ? fmt(l.draftsWaiting, { count: overview.draftCount }) : l.approved} />
+        <Kpi label={l.kpiCases} value={overview.caseCount} />
         <Kpi label={l.kpiCoverage} value={formatPercent(overview.automationCoverage)} hint={fmt(l.automatedCount, { count: overview.automatedCount })} />
         <Kpi label={l.kpiPassRate} value={formatPercent(overview.latestRun?.passRate ?? null)} tone="passed" hint={overview.latestRun?.name ?? l.noRunsYet} />
         <Kpi label={l.kpiActiveRuns} value={overview.activeRuns} />
@@ -66,6 +66,14 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
 
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         <div className="space-y-6">
+          <section className="rounded-lg border bg-card p-4" data-testid="site-summary">
+            <h2 className="mb-1.5 text-sm font-semibold">{l.siteSummaryTitle}</h2>
+            {analysis?.siteSummary ? (
+              <p className="text-[13px] leading-relaxed text-zinc-700">{analysis.siteSummary}</p>
+            ) : (
+              <p className="text-[13px] text-muted-foreground">{l.siteSummaryEmpty}</p>
+            )}
+          </section>
           <section>
             <SectionTitle
               actions={
@@ -86,12 +94,6 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
                 </Link>
               </div>
             )}
-          </section>
-          <section>
-            <SectionTitle>{l.recentActivity}</SectionTitle>
-            <div className="rounded-md border px-3">
-              <ActivityList activities={activities} />
-            </div>
           </section>
         </div>
 
@@ -118,12 +120,12 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
           <section className="rounded-md border">
             <div className="flex items-center justify-between border-b px-3 py-2">
               <h2 className="text-[13px] font-semibold">{l.lastAnalysis}</h2>
-              <span className="text-xs text-muted-foreground">{formatRelative(analysis?.analyzedAt, locale)}</span>
+              <span className="text-xs text-muted-foreground">{formatRelative(crawled?.analyzedAt, locale)}</span>
             </div>
-            {analysis ? (
+            {crawled ? (
               <div className="space-y-3 px-3 py-3 text-[13px]">
                 <ul className="space-y-1.5">
-                  {analysis.sources.map((source) => (
+                  {crawled.sources.map((source) => (
                     <li key={source.url} className="flex items-start gap-2">
                       {source.ok ? (
                         <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-passed" />
@@ -140,10 +142,10 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {(
                     [
-                      [l.signals.pages, analysis.signals.pages],
-                      [l.signals.forms, analysis.signals.forms],
-                      [l.signals.routes, analysis.signals.routes],
-                      [l.signals.apis, analysis.signals.apiEndpoints],
+                      [l.signals.pages, crawled.signals.pages],
+                      [l.signals.forms, crawled.signals.forms],
+                      [l.signals.routes, crawled.signals.routes],
+                      [l.signals.apis, crawled.signals.apiEndpoints],
                     ] as const
                   ).map(([label, value]) => (
                     <div key={label} className="rounded bg-subtle py-1.5">
@@ -153,12 +155,12 @@ export default async function ProjectOverviewPage({ params }: PageProps<"/projec
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {fmt(l.generatedBy, { count: analysis.generatedCount, provider: analysis.provider })}
-                  {analysis.model ? ` (${analysis.model})` : ""}.
+                  {fmt(l.generatedBy, { count: crawled.generatedCount, provider: crawled.provider })}
+                  {crawled.model ? ` (${crawled.model})` : ""}.
                 </p>
-                {analysis.warnings.length ? (
+                {crawled.warnings.length ? (
                   <ul className="list-disc space-y-0.5 pl-4 text-xs text-amber-800">
-                    {analysis.warnings.map((warning) => (
+                    {crawled.warnings.map((warning) => (
                       <li key={warning}>{warning}</li>
                     ))}
                   </ul>

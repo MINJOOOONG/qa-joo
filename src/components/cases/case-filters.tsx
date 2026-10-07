@@ -15,7 +15,7 @@ interface Option {
   label: string;
 }
 
-const FILTER_KEYS = ["type", "priority", "automation", "result", "source", "review"] as const;
+const FILTER_KEYS = ["run", "type", "priority", "automation", "result", "source"] as const;
 
 function buildFilters(t: Dictionary): Array<{ key: string; label: string; options: Option[] }> {
   const f = t.cases.filters;
@@ -30,21 +30,18 @@ function buildFilters(t: Dictionary): Array<{ key: string; label: string; option
       label: f.source,
       options: (["manual", "ai_generated"] as const).map((v) => ({ value: v, label: e.caseSource[v] })),
     },
-    {
-      key: "review",
-      label: f.review,
-      options: (["approved", "draft", "rejected"] as const).map((v) => ({ value: v, label: e.reviewStatus[v] })),
-    },
   ];
 }
 
 export function CaseFilters({
   projects,
+  runs,
   sections,
   showProject,
 }: {
   projects: Option[];
   sections: Option[];
+  runs?: Option[];
   showProject: boolean;
 }) {
   const router = useRouter();
@@ -92,6 +89,24 @@ export function CaseFilters({
           className="h-7 w-52 rounded-md border border-input bg-background pl-7 pr-2 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
         />
       </div>
+      {runs?.length ? (
+        <NativeSelect
+          aria-label={f.run}
+          data-testid="run-filter"
+          className="h-7 w-auto max-w-64 text-xs"
+          value={params.get("run") ?? ""}
+          onChange={(event) => update("run", event.target.value || null)}
+        >
+          <option value="">
+            {f.run}: {f.runLatest}
+          </option>
+          {runs.map((option) => (
+            <option key={option.value} value={option.value}>
+              {f.run}: {option.label}
+            </option>
+          ))}
+        </NativeSelect>
+      ) : null}
       {showProject ? (
         <NativeSelect
           aria-label={f.project}

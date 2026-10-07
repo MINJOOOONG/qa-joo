@@ -111,7 +111,7 @@ describe("automation workflow", () => {
     await expect(createAutomationRun(ctx, { projectId: project.id, testRunId: testRun.id }, runOptions)).rejects.toMatchObject({ code: "invalid_state" });
   });
 
-  it("stores failure analysis as a suggestion and turns suggestions into AI drafts", async () => {
+  it("stores failure analysis as a suggestion and turns suggestions into AI-generated cases", async () => {
     await approvedSpec();
     const run = await createAutomationRun(ctx, { projectId: project.id }, runOptions);
     await applyRunnerCallback(ctx, { automationRunId: run.id, results: [{ testCaseId: testCase.id, status: "failed", errorMessage: "status 500 Internal Server Error" }] });
@@ -120,6 +120,6 @@ describe("automation workflow", () => {
     expect(analyzed.analysis).toMatchObject({ category: "backend", provider: "heuristic" });
     const created = await addSuggestedRegressionCases(ctx, result.id, [0, 1, 0]);
     expect(created).toHaveLength(2);
-    expect(created.every((c) => c.reviewStatus === "draft" && c.source === "ai_generated" && c.tags.includes("from-failure"))).toBe(true);
+    expect(created.every((c) => c.reviewStatus === "approved" && c.source === "ai_generated" && c.tags.includes("from-failure"))).toBe(true);
   });
 });

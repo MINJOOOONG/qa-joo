@@ -40,6 +40,13 @@ function casesSchemaFor(locale: Locale) {
   return z.object({
     cases: z.array(caseSchemaFor(locale)),
     coverageNotes: z.string().describe("Short note on what is covered and what could not be inferred"),
+    siteSummary: z
+      .string()
+      .describe(
+        locale === "en"
+          ? "3-4 plain sentences describing what this website/product is, who it is for and its main features"
+          : "이 사이트/제품이 무엇이고 누구를 위한 것이며 주요 기능이 무엇인지 3~4문장의 쉬운 한국어로 요약",
+      ),
   });
 }
 

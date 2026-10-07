@@ -241,6 +241,21 @@ export async function seedDemoWorkspace(
     environment: "staging",
   });
 
+  // Illustrative analysis so the overview shows what the site is before anyone runs step 1.
+  await repo.updateProject(project.id, {
+    lastAnalysis: {
+      analyzedAt: new Date().toISOString(),
+      siteSummary:
+        "ReviewForge는 체험단·로컬 캠페인에 참여하는 크리에이터를 돕는 서비스예요. 캠페인 URL을 넣으면 브리프를 읽어 요구사항(필수 키워드, 사진 개수 등)을 정리하고, 신청 문구와 후기 초안을 써 줘요. 작성한 후기가 미션 조건을 지켰는지 검수하는 기능도 있어요. (데모 요약)",
+      provider: "demo-seed",
+      model: null,
+      sources: [],
+      signals: { pages: 0, forms: 0, inputs: 0, buttons: 0, links: 0, routes: 0, apiEndpoints: 0 },
+      generatedCount: 0,
+      warnings: [],
+    },
+  });
+
   const sectionIds = new Map<string, string>();
   const ensureSection = async (path: string) => {
     let parentId: string | null = null;
@@ -278,8 +293,8 @@ export async function seedDemoWorkspace(
       },
       {
         source: isDraft ? "ai_generated" : "manual",
-        reviewStatus: isDraft ? "draft" : "approved",
-        aiRationale: isDraft ? "데모용 AI 초안입니다. Analyze Project를 실행하면 실제 앱에서 초안을 생성합니다." : null,
+        reviewStatus: "approved",
+        aiRationale: isDraft ? "데모용 AI 생성 케이스입니다. 사이트·깃허브로 TC 만들기를 실행하면 실제 앱을 분석해 만듭니다." : null,
         silent: true,
       },
     );

@@ -13,6 +13,8 @@ export const cases = defineMessages({
     },
     explorer: {
       count: "{count} case(s)",
+      resultIn: "Result in {run}",
+      runSummary: "{run}: {count} case(s)",
       newCase: "New Case",
       emptyTitle: "No test cases match",
       emptyWithProject: "Adjust the filters, add a case manually, or analyze the project to draft cases with AI.",
@@ -34,6 +36,8 @@ export const cases = defineMessages({
       },
     },
     filters: {
+      run: "Results from",
+      runLatest: "Latest result (all runs)",
       searchPlaceholder: "Search ID or title",
       searchLabel: "Search test cases",
       project: "Project",
@@ -130,9 +134,11 @@ export const cases = defineMessages({
     },
     explorer: {
       count: "케이스 {count}개",
+      resultIn: "{run} 결과",
+      runSummary: "{run}: 케이스 {count}개",
       newCase: "새 케이스",
       emptyTitle: "조건에 맞는 테스트 케이스가 없어요",
-      emptyWithProject: "필터를 조정하거나, 케이스를 직접 추가하거나, 프로젝트를 분석해 AI로 케이스 초안을 만들어 보세요.",
+      emptyWithProject: "필터를 조정하거나, 케이스를 직접 추가하거나, 사이트·깃허브로 AI가 케이스를 만들게 해 보세요.",
       emptyNoProject: "프로젝트를 선택하거나 첫 케이스를 추가하세요.",
       analyze: "{name} 분석",
       draft: "초안",
@@ -151,6 +157,8 @@ export const cases = defineMessages({
       },
     },
     filters: {
+      run: "결과 기준",
+      runLatest: "최근 결과 (모든 런)",
       searchPlaceholder: "ID 또는 제목 검색",
       searchLabel: "테스트 케이스 검색",
       project: "프로젝트",
